@@ -322,6 +322,7 @@ class Loan(LoanBase):
     collateral: List[LoanCollateral] = []
     referees: List[LoanReferee] = []
     financial_analysis: Optional[LoanFinancialAnalysis] = None
+    repayments: List[Repayment] = []  # Include repayments for real-time balance calc
     
     class Config:
         from_attributes = True
