@@ -38,7 +38,10 @@ $filesToZip = @(
 )
 
 Write-Host "Creating archive: $dbConfig"
-Compress-Archive -Path $foldersToZip, $filesToZip -DestinationPath $dbConfig -Force
+$allItems = @()
+$allItems += $foldersToZip
+$allItems += $filesToZip
+Compress-Archive -Path $allItems -DestinationPath $dbConfig -Force
 
 Write-Host "Done! You can now upload specific file:"
 Write-Host "scp $dbConfig root@138.68.241.97:/opt/inphora" -ForegroundColor Yellow
