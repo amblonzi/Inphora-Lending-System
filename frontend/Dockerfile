@@ -7,7 +7,8 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-RUN npx vite build
+RUN chmod +x node_modules/.bin/*
+RUN npm run build
 
 # Stage 2: Serve the React application with Nginx
 FROM nginx:alpine

@@ -32,7 +32,7 @@ services:
       SECRET_KEY: ${TYTAJ_SECRET_KEY}
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: https://tytaj.inphora.net
+      ALLOWED_ORIGINS: https://tytahj.inphora.net
     depends_on:
       db_tytaj:
         condition: service_healthy

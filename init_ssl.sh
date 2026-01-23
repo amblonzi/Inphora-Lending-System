@@ -1,6 +1,6 @@
 #!/bin/bash
 
-domains=(tytaj.inphora.net amariflow.inphora.net il.inphora.net)
+domains=(tytahj.inphora.net amariflow.inphora.net il.inphora.net)
 rsa_key_size=4096
 data_path="./certbot"
 email="" # Adding a valid email is recommended

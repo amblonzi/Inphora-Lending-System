@@ -17,6 +17,8 @@
           brand = 'amari';
         } else if (host.includes('il.')) {
           brand = 'il';
+        } else if (host.includes('tytahj')) {
+          brand = 'tytahj';
         }
         
         // Dynamic Manifest
@@ -41,7 +43,7 @@
         // Dynamic Title
         const titles = {
           'amari': 'AmariFlow - Lending System',
-          'tytaj': 'Tytaj Express - Lending System',
+          'tytahj': 'Tytahj Express - Lending System',
           'il': 'Inphora - Lending System'
         };
         document.title = titles[brand] || 'Inphora - Lending System';

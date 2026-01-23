@@ -34,7 +34,8 @@ $filesToZip = @(
     "docker-compose.yml",
     "env.example.production",
     "init_ssl.sh",
-    "server_deploy.sh"
+    "server_deploy.sh",
+    "init_databases.sh"
 )
 
 Write-Host "Creating archive: $dbConfig"
