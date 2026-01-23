@@ -1,49 +1,143 @@
 services:
-  # Database Service
-  db:
+  # ============================================
+  # TYTAJ CLIENT
+  # ============================================
+  db_tytaj:
     image: mariadb:10.6
+    container_name: inphora_db_tytaj
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${TYTAJ_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: tytajdb
+      MYSQL_USER: tytaj_user
+      MYSQL_PASSWORD: ${TYTAJ_DB_PASSWORD}
     volumes:
-      - db_data:/var/lib/mysql
+      - db_tytaj_data:/var/lib/mysql
     networks:
       - app_network
+    ports:
+      - "3306:3306"
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  # Backend API Service
-  backend:
+  backend_tytaj:
     build: ./backend
+    container_name: inphora_backend_tytaj
     restart: always
     environment:
-      DATABASE_URL: mysql+pymysql://${DB_USER}:${DB_PASSWORD}@db/${DB_NAME}
-      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: mysql+pymysql://tytaj_user:${TYTAJ_DB_PASSWORD}@db_tytaj/tytajdb
+      SECRET_KEY: ${TYTAJ_SECRET_KEY}
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://tytaj.inphora.net,https://amariflow.inphora.net,https://il.inphora.net}
+      ALLOWED_ORIGINS: https://tytaj.inphora.net
     depends_on:
-      db:
+      db_tytaj:
         condition: service_healthy
     networks:
       - app_network
+    ports:
+      - "8001:8000"
 
-  # Frontend Service
+  # ============================================
+  # AMARIFLOW CLIENT
+  # ============================================
+  db_amari:
+    image: mariadb:10.6
+    container_name: inphora_db_amari
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${AMARI_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: amaridb
+      MYSQL_USER: amari_user
+      MYSQL_PASSWORD: ${AMARI_DB_PASSWORD}
+    volumes:
+      - db_amari_data:/var/lib/mysql
+    networks:
+      - app_network
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend_amari:
+    build: ./backend
+    container_name: inphora_backend_amari
+    restart: always
+    environment:
+      DATABASE_URL: mysql+pymysql://amari_user:${AMARI_DB_PASSWORD}@db_amari/amaridb
+      SECRET_KEY: ${AMARI_SECRET_KEY}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      ALLOWED_ORIGINS: https://amariflow.inphora.net
+    depends_on:
+      db_amari:
+        condition: service_healthy
+    networks:
+      - app_network
+    ports:
+      - "8002:8000"
+
+  # ============================================
+  # IL (INPHORA LOGIC) CLIENT
+  # ============================================
+  db_il:
+    image: mariadb:10.6
+    container_name: inphora_db_il
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${IL_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ildb
+      MYSQL_USER: il_user
+      MYSQL_PASSWORD: ${IL_DB_PASSWORD}
+    volumes:
+      - db_il_data:/var/lib/mysql
+    networks:
+      - app_network
+    ports:
+      - "3308:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend_il:
+    build: ./backend
+    container_name: inphora_backend_il
+    restart: always
+    environment:
+      DATABASE_URL: mysql+pymysql://il_user:${IL_DB_PASSWORD}@db_il/ildb
+      SECRET_KEY: ${IL_SECRET_KEY}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      ALLOWED_ORIGINS: https://il.inphora.net
+    depends_on:
+      db_il:
+        condition: service_healthy
+    networks:
+      - app_network
+    ports:
+      - "8003:8000"
+
+  # ============================================
+  # SHARED SERVICES
+  # ============================================
   frontend:
     build: ./frontend
+    container_name: inphora_frontend
     restart: always
     networks:
       - app_network
 
-  # Nginx Gateway (Reverse Proxy)
   nginx:
     image: nginx:alpine
+    container_name: inphora_nginx
     restart: always
     ports:
       - "80:80"
@@ -54,13 +148,15 @@ services:
       - ./certbot/www:/var/www/certbot
     depends_on:
       - frontend
-      - backend
+      - backend_tytaj
+      - backend_amari
+      - backend_il
     networks:
       - app_network
 
-  # Certbot for SSL
   certbot:
     image: certbot/certbot
+    container_name: inphora_certbot
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
@@ -71,4 +167,6 @@ networks:
     driver: bridge
 
 volumes:
-  db_data:
+  db_tytaj_data:
+  db_amari_data:
+  db_il_data:
