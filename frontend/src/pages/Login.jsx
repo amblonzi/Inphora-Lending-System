@@ -147,7 +147,6 @@ const Login = () => {
                                     type="email"
                                     required
                                     className="w-full pl-14 pr-4 py-4.5 bg-gray-50/80 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition-all font-black text-gray-900 dark:text-white tracking-tight"
-                                    placeholder="admin@system.com"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                 />
@@ -165,7 +164,6 @@ const Login = () => {
                                     type="password"
                                     required
                                     className="w-full pl-14 pr-4 py-4.5 bg-gray-50/80 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition-all font-black text-gray-900 dark:text-white tracking-widest"
-                                    placeholder="••••••••"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                 />

@@ -12,6 +12,8 @@ env/
 # Environment files
 .env
 .env.local
+.env.production
+env.example.production
 
 # Database
 *.db
@@ -37,4 +39,9 @@ Thumbs.db
 # Dependencies
 node_modules/
 dist/
-build/
+# Automation & Import Scripts
+backend/bulk_load_tytahj.py
+backend/bulk_import_clients.py
+deploy_package.zip
+deploy_package_v2.zip
+

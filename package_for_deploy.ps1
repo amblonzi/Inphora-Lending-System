@@ -33,9 +33,11 @@ $foldersToZip = @(
 $filesToZip = @(
     "docker-compose.yml",
     "env.example.production",
+    ".env.production",
     "init_ssl.sh",
     "server_deploy.sh",
-    "init_databases.sh"
+    "init_databases.sh",
+    "backend/bulk_load_tytahj.py"
 )
 
 Write-Host "Creating archive: $dbConfig"

@@ -33,7 +33,7 @@ create_admin() {
 }
 
 # Create admin for each client
-create_admin "tytaj" "inphora_backend_tytaj" "tytajdb" "tytaj_user" "$TYTAJ_DB_PASSWORD"
+create_admin "tytahj" "inphora_backend_tytahj" "tytahjdb" "tytahj_user" "$TYTAHJ_DB_PASSWORD"
 create_admin "amari" "inphora_backend_amari" "amaridb" "amari_user" "$AMARI_DB_PASSWORD"
 create_admin "il" "inphora_backend_il" "ildb" "il_user" "$IL_DB_PASSWORD"
 

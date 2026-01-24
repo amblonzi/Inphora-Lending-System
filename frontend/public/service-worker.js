@@ -5,11 +5,13 @@
 
 const getBrand = () => {
   const host = self.location.hostname.toLowerCase();
-  return host.includes('amari') ? 'amari' : 'tytaj';
+  if (host.includes('amari')) return 'amari';
+  if (host.includes('il.')) return 'il';
+  return 'tytahj'; // Correct spelling and better default
 };
 
 const brand = getBrand();
-const VERSION = 'v2.1';
+const VERSION = 'v2.2'; // Bumped version to force refresh
 const CACHE_NAME = `inphora-${brand}-${VERSION}`;
 
 const urlsToCache = [

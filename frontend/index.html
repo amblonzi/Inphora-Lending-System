@@ -11,22 +11,15 @@
     <script>
       (function() {
         const host = window.location.hostname.toLowerCase();
-        let brand = 'tytaj'; // default
+        let brand = 'il'; // Better default
         
         if (host.includes('amari')) {
           brand = 'amari';
-        } else if (host.includes('il.')) {
-          brand = 'il';
         } else if (host.includes('tytahj')) {
           brand = 'tytahj';
+        } else if (host.includes('il.')) {
+          brand = 'il';
         }
-        
-        // Dynamic Manifest
-        const manifest = document.createElement('link');
-        manifest.rel = 'manifest';
-        manifest.href = `/manifest-${brand}.json`;
-        document.head.appendChild(manifest);
-
         // Dynamic Favicon
         const favicon = document.createElement('link');
         favicon.rel = 'icon';
@@ -47,6 +40,15 @@
           'il': 'Inphora - Lending System'
         };
         document.title = titles[brand] || 'Inphora - Lending System';
+
+        // Kill any existing service workers to ensure clean branching
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let registration of registrations) {
+              registration.unregister();
+            }
+          });
+        }
       })();
     </script>
   </head>
