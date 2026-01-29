@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Environment files - SECRETS
+.env
+.env.local
+.env.production
+env.example.production
+backend/.env
+
+# Database
+*.db
+*.sqlite3
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Archives
+*.zip
+*.tar.gz
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+node_modules/
+dist/
+dist-ssr/
+
+# Project Specific
+backend/bulk_load_tytahj.py
+backend/bulk_import_clients.py
+backend/debug_users.py
+deploy_package.zip
+deploy_package_v2.zip
+run_dev.ps1
+docker-compose.dev.yml
+reset_local_env.ps1

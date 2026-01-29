@@ -1,0 +1,21 @@
+{
+  "name": "Tytahj Lending System",
+  "short_name": "Tytahj",
+  "description": "Digital Lending Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/tytahj-icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/tytahj-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

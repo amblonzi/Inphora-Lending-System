@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+cryptography
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==3.2.2
+pydantic
+python-multipart
+python-dotenv
+aiofiles
+a2wsgi
+python-dateutil
+requests
