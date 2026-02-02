@@ -33,6 +33,7 @@ create_admin() {
 }
 
 # Create admin for each client
+create_admin "inphora" "inphora_backend_inphora" "inphoradb" "inphora_user" "$INPHORA_DB_PASSWORD"
 create_admin "tytahj" "inphora_backend_tytahj" "tytahjdb" "tytahj_user" "$TYTAHJ_DB_PASSWORD"
 create_admin "amari" "inphora_backend_amari" "amaridb" "amari_user" "$AMARI_DB_PASSWORD"
 create_admin "il" "inphora_backend_il" "ildb" "il_user" "$IL_DB_PASSWORD"
@@ -44,7 +45,7 @@ echo "==================================="
 echo ""
 echo "Access credentials:"
 echo "-----------------------------------"
-echo "Tytaj:      https://tytahj.inphora.net"
+echo "Inphora Lending:  https://inphora.net"
 echo "AmariFlow:  https://amariflow.inphora.net"
 echo "IL:         https://il.inphora.net"
 echo ""

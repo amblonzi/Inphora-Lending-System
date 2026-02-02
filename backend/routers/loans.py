@@ -20,22 +20,41 @@ def create_loan(
     if not product:
         raise HTTPException(status_code=404, detail="Loan product not found")
     
-    # Calculate end date
-    end_date = loan.start_date + timedelta(days=loan.duration_months * 30)
+    # Calculate end date based on duration unit
+    duration = loan.duration_count if loan.duration_count else loan.duration_months
+    unit = loan.duration_unit
     
+    if unit == "weeks":
+        end_date = loan.start_date + timedelta(weeks=duration)
+    elif unit == "days":
+        end_date = loan.start_date + timedelta(days=duration)
+    else: # Default to months
+        end_date = loan.start_date + timedelta(days=duration * 30)
+    
+    # Snapshot fees
+    processing_fee = 0.0
+    if not loan.is_processing_fee_waived:
+        # Use fixed fee if present, otherwise calculate from percent
+        if product.processing_fee_fixed > 0:
+            processing_fee = product.processing_fee_fixed
+        else:
+            processing_fee = (loan.amount * product.processing_fee_percent) / 100
+            
     # Create main Loan record
-    # Exclude nested fields from direct Loan creation
-    loan_data = loan.dict(exclude={"guarantors", "collateral", "referees", "financial_analysis"})
+    loan_data = loan.dict(exclude={"guarantors", "collateral", "referees", "financial_analysis", "duration_count"})
     
     db_loan = models.Loan(
         **loan_data,
         interest_rate=product.interest_rate,
         end_date=end_date,
+        duration_unit=unit,
         status="pending",
         # Snapshot fees
-        insurance_fee=product.insurance_fee,
-        processing_fee=product.processing_fee_percent, # Percentage logic needs refinement potentially, keeping simple for now
-        valuation_fee=product.valuation_fee
+        insurance_fee=product.insurance_fee or 0.0,
+        processing_fee=processing_fee,
+        valuation_fee=product.valuation_fee or 0.0,
+        registration_fee=product.registration_fee or 0.0,
+        is_processing_fee_waived=loan.is_processing_fee_waived
     )
     db.add(db_loan)
     db.commit()
@@ -237,20 +256,33 @@ def get_loan_schedule(
     total_interest = (principal * loan.interest_rate) / 100
     total_due = principal + total_interest
     
-    duration = loan.duration_months
+    # Calculate duration in days for easier installment calculation
+    duration_count = loan.duration_months # Fallback
+    # Check if there's a duration_count in the DB or if we use months
+    # Actually, we added duration_unit to the model. We should use it.
+    unit = loan.duration_unit or "months"
+    
+    # Total duration in days
+    if unit == "weeks":
+        total_days = duration_count * 7
+    elif unit == "days":
+        total_days = duration_count
+    else: # months
+        total_days = duration_count * 30
+        
     frequency = loan.repayment_frequency
     
     if frequency == "daily":
-        num_installments = duration * 30
+        num_installments = total_days
         interval_days = 1
     elif frequency == "weekly":
-        num_installments = duration * 4
+        num_installments = max(1, total_days // 7)
         interval_days = 7
     elif frequency == "monthly":
-        num_installments = duration
+        num_installments = max(1, total_days // 30)
         interval_days = 30
     else:
-        num_installments = duration
+        num_installments = max(1, total_days // 30)
         interval_days = 30
         
     installment_amount = total_due / num_installments

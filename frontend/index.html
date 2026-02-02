@@ -1,59 +1,66 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#3b82f6" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <meta name="description" content="Inphora - Digital Lending Management System" />
-    <script>
-      (function() {
-        const host = window.location.hostname.toLowerCase();
-        let brand = 'il'; // Better default
-        
-        if (host.includes('amari')) {
-          brand = 'amari';
-        } else if (host.includes('tytahj')) {
-          brand = 'tytahj';
-        } else if (host.includes('il.')) {
-          brand = 'il';
-        }
-        // Dynamic Favicon
-        const favicon = document.createElement('link');
-        favicon.rel = 'icon';
-        favicon.type = 'image/png';
-        favicon.href = `/${brand}-favicon.png`;
-        document.head.appendChild(favicon);
 
-        // Apple Touch Icon
-        const appleIcon = document.createElement('link');
-        appleIcon.rel = 'apple-touch-icon';
-        appleIcon.href = `/${brand}-icon.png`;
-        document.head.appendChild(appleIcon);
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#3b82f6" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <meta name="description" content="Inphora - Digital Lending Management System" />
+  <script>
+    (function () {
+      const host = window.location.hostname.toLowerCase();
+      let brand = 'il'; // Better default
 
-        // Dynamic Title
-        const titles = {
-          'amari': 'AmariFlow - Lending System',
-          'tytahj': 'Tytahj Express - Lending System',
-          'il': 'Inphora - Lending System'
-        };
-        document.title = titles[brand] || 'Inphora - Lending System';
+      if (host.includes('amari')) {
+        brand = 'amari';
+      } else if (host.includes('tytahj')) {
+        brand = 'tytahj';
+      } else if (host.includes('inphora')) {
+        brand = 'inphora';
+      } else if (host.includes('il.')) {
+        brand = 'il';
+      }
+      // Dynamic Favicon
+      const favicon = document.createElement('link');
+      favicon.rel = 'icon';
+      favicon.type = 'image/png';
+      favicon.href = `/${brand}-favicon.png`;
+      document.head.appendChild(favicon);
 
-        // Kill any existing service workers to ensure clean branching
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(registrations => {
-            for (let registration of registrations) {
-              registration.unregister();
-            }
-          });
-        }
-      })();
-    </script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+      // Apple Touch Icon
+      const appleIcon = document.createElement('link');
+      appleIcon.rel = 'apple-touch-icon';
+      appleIcon.href = `/${brand}-icon.png`;
+      document.head.appendChild(appleIcon);
+
+      // Dynamic Title
+      const titles = {
+        'amari': 'AmariFlow - Lending System',
+        'tytahj': 'Tytahj Express - Lending System',
+        'inphora': 'Inphora Lending - Management System',
+        'il': 'Inphora - Lending System'
+      };
+      document.title = titles[brand] || 'Inphora Lending - Management System';
+
+      // Kill any existing service workers to ensure clean branching
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+        });
+      }
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

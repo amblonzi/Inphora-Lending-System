@@ -7,6 +7,7 @@ from database import get_db
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 # Helper to check if user is admin
+@router.get("")
 @router.get("/")
 def get_settings(
     category: Optional[str] = None,
@@ -81,6 +82,7 @@ def delete_setting(
     return {"message": "Setting deleted"}
 
 @router.put("/users/me/password")
+@router.put("/users/me/password/")
 def change_own_password(
     current_password: str,
     new_password: str,

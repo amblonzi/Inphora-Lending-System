@@ -99,6 +99,11 @@ class LoanProduct(Base):
     processing_fee_percent = Column(Float, default=0.0)
     crb_fee = Column(Float, default=0.0)
     
+    # New Fields
+    processing_fee_fixed = Column(Float, default=0.0)
+    registration_fee = Column(Float, default=0.0)
+    duration_unit = Column(String(20), default="months") # months, weeks, days
+    
     # Limits
     first_cycle_limit = Column(Float, nullable=True)
 
@@ -120,6 +125,11 @@ class Loan(Base):
     insurance_fee = Column(Float, default=0.0)
     processing_fee = Column(Float, default=0.0)
     valuation_fee = Column(Float, default=0.0)
+    registration_fee = Column(Float, default=0.0)
+    is_processing_fee_waived = Column(Boolean, default=False)
+    
+    duration_unit = Column(String(20), default="months")
+    
     status = Column(String(50), default="pending") # pending, approved, active, completed, defaulted, rejected
     
     # Multi-level Approval

@@ -27,10 +27,15 @@ if (Test-Path $dbConfig) {
 
 $foldersToZip = @(
     "backend",
-    "frontend",
     "nginx"
 )
-$filesToZip = @(
+# Note: frontend/dist is handled separately if needed, or we just add it to items
+# For simplicity with Compress-Archive, we'll collect specific items
+
+$itemsToZip = @(
+    "backend",
+    "nginx",
+    "frontend/dist",
     "docker-compose.yml",
     "env.example.production",
     ".env.production",
@@ -41,10 +46,7 @@ $filesToZip = @(
 )
 
 Write-Host "Creating archive: $dbConfig"
-$allItems = @()
-$allItems += $foldersToZip
-$allItems += $filesToZip
-Compress-Archive -Path $allItems -DestinationPath $dbConfig -Force
+Compress-Archive -Path $itemsToZip -DestinationPath $dbConfig -Force
 
 Write-Host "Done! You can now upload specific file:"
 Write-Host "scp $dbConfig root@138.68.241.97:/opt/inphora" -ForegroundColor Yellow

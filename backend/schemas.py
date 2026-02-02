@@ -27,7 +27,7 @@ class Userimpl(UserBase):
     created_at: datetime
     last_login: Optional[datetime] = None
     phone: Optional[str] = None
-    two_factor_enabled: bool
+    two_factor_enabled: Optional[bool] = False
 
     class Config:
         from_attributes = True
@@ -149,7 +149,7 @@ class ClientBase(BaseModel):
     email: Optional[str] = None
     phone: str
     id_number: str
-    address: str
+    address: Optional[str] = None
     
     # New Fields
     dob: Optional[date] = None
@@ -216,6 +216,12 @@ class LoanProductBase(BaseModel):
     valuation_fee: float = 0.0
     processing_fee_percent: float = 0.0
     crb_fee: float = 0.0
+    
+    # New Fields
+    processing_fee_fixed: float = 0.0
+    registration_fee: float = 0.0
+    duration_unit: Optional[str] = "months"
+    
     first_cycle_limit: Optional[float] = None
 
 class LoanProductCreate(LoanProductBase):
@@ -295,9 +301,12 @@ class LoanBase(BaseModel):
     client_id: int
     product_id: int
     amount: float
-    duration_months: int
+    duration_months: int # Renamed internally but keeping for backward compat or migrating
+    duration_count: Optional[int] = None # New generic count
+    duration_unit: Optional[str] = "months"
     start_date: date
     repayment_frequency: str = "monthly"
+    is_processing_fee_waived: bool = False
 
 class LoanCreate(LoanBase):
     guarantors: List[LoanGuarantorCreate] = []

@@ -23,9 +23,9 @@ if [ -d "$data_path" ]; then
   fi
 fi
 
-echo "### Creating dummy certificate for $domains ..."
-path="/etc/letsencrypt/live/$domains"
-mkdir -p "$data_path/conf/live/$domains"
+echo "### Creating dummy certificate for ${domains[0]} ..."
+path="/etc/letsencrypt/live/${domains[0]}"
+mkdir -p "$data_path/conf/live/${domains[0]}"
 docker compose run --rm --entrypoint "\
   openssl req -x509 -nodes -newkey rsa:$rsa_key_size -days 1\
     -keyout '$path/privkey.pem' \
@@ -35,11 +35,11 @@ docker compose run --rm --entrypoint "\
 echo "### Starting nginx ..."
 docker compose up --force-recreate -d nginx
 sleep 5
-echo "### Deleting dummy certificate for $domains ..."
+echo "### Deleting dummy certificate for ${domains[0]} ..."
 docker compose run --rm --entrypoint "\
-  rm -Rf /etc/letsencrypt/live/$domains && \
-  rm -Rf /etc/letsencrypt/archive/$domains && \
-  rm -Rf /etc/letsencrypt/renewal/$domains.conf" certbot
+  rm -Rf /etc/letsencrypt/live/${domains[0]} && \
+  rm -Rf /etc/letsencrypt/archive/${domains[0]} && \
+  rm -Rf /etc/letsencrypt/renewal/${domains[0]}.conf" certbot
 echo "### Requesting Let's Encrypt certificate for $domains ..."
 #Join $domains to -d args
 domain_args=""

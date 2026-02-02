@@ -38,8 +38,13 @@ def update_schema():
                 else:
                     print(f"   ❌ Error adding '{col_name}': {e}")
         
+        # 2. Fix existing NULL values
+        print("🔧 Updating existing records with default values...")
+        connection.execute(text("UPDATE users SET two_factor_enabled = FALSE WHERE two_factor_enabled IS NULL"))
+        connection.execute(text("UPDATE users SET phone = '' WHERE phone IS NULL"))
+        
         connection.commit()
-        print("✨ Schema update complete!")
+        print("✨ Schema update and data cleanup complete!")
 
 if __name__ == "__main__":
     update_schema()
