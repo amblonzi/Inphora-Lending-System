@@ -32,7 +32,9 @@ def create_user(
         full_name=user.full_name,
         hashed_password=hashed_password,
         role=user.role,
-        is_active=True
+        is_active=True,
+        phone=user.phone,
+        two_factor_enabled=user.two_factor_enabled
     )
     db.add(new_user)
     db.commit()

@@ -7,6 +7,8 @@ class UserBase(BaseModel):
     email: str
     full_name: Optional[str] = None
     role: str = "loan_officer"
+    phone: Optional[str] = None
+    two_factor_enabled: Optional[bool] = False
 
 class UserCreate(UserBase):
     password: str
@@ -26,8 +28,6 @@ class Userimpl(UserBase):
     permissions: Optional[str] = None
     created_at: datetime
     last_login: Optional[datetime] = None
-    phone: Optional[str] = None
-    two_factor_enabled: Optional[bool] = False
 
     class Config:
         from_attributes = True

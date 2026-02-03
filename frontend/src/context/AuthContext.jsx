@@ -71,13 +71,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const userData = await api.auth.getProfile();
+      setUser(userData);
+    } catch (error) {
+      console.error("Failed to refresh user profile", error);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, verifyOtp, logout, loading, api }}>
+    <AuthContext.Provider value={{ user, login, verifyOtp, logout, loading, api, refreshUser }}>
       {!loading && children}
     </AuthContext.Provider>
   );

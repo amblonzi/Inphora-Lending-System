@@ -1,0 +1,53 @@
+services:
+  # Shared MariaDB for all local backends
+  db_local:
+    image: mariadb:10.6
+    container_name: inphora_db_local
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    networks:
+      - app_network
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Backend for Tytahj (Default Local Client)
+  backend_tytahj:
+    build: ./backend
+    container_name: inphora_backend_tytahj_local
+    restart: always
+    environment:
+      DATABASE_URL: mysql+pymysql://root:root@db_local/tytahjdb
+      SECRET_KEY: local_secret_key_123
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 43200
+      ENVIRONMENT: development
+      DEBUG: "True"
+    depends_on:
+      db_local:
+        condition: service_healthy
+    networks:
+      - app_network
+    ports:
+      - "8000:8000"
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    container_name: inphora_frontend_local
+    restart: always
+    environment:
+      VITE_API_URL: http://localhost:8000
+    networks:
+      - app_network
+    ports:
+      - "5173:5173"
+
+networks:
+  app_network:
+    driver: bridge

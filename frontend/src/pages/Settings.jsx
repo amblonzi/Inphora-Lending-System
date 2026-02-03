@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
 const Settings = () => {
-  const { api, user } = useAuth();
+  const { api, user, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState('organization');
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(false);
@@ -79,6 +79,20 @@ const Settings = () => {
       setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error updating credentials');
+    }
+  };
+
+  const handleUpdateAccount = async (data) => {
+    if (data.two_factor_enabled && !user?.phone && !data.phone) {
+      toast.error('Please set a phone number before enabling 2FA');
+      return;
+    }
+    try {
+      await api.users.update(user.id, data);
+      toast.success('Security profile updated');
+      await refreshUser();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Error updating account security');
     }
   };
 
@@ -560,14 +574,56 @@ const Settings = () => {
             </GlassCard>
 
             <div className="space-y-8">
-              <GlassCard className="p-10 border-white/20 dark:border-white/5 shadow-xl group">
-                <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100 dark:border-white/5">
+              <GlassCard className="p-10 border-white/20 dark:border-white/5 shadow-xl group relative overflow-hidden">
+                <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-emerald-500/5 blur-[100px] group-hover:bg-emerald-500/10 transition-all duration-700" />
+                <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100 dark:border-white/5 relative z-10">
                   <div className="p-4 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl border border-emerald-500/20">
                     <ShieldCheck size={28} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Account Information</h3>
-                    <p className="text-[10px] font-black text-emerald-600/60 dark:text-emerald-400/60 uppercase tracking-widest mt-1">Active Session</p>
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Two-Factor Auth</h3>
+                    <p className="text-[10px] font-black text-emerald-600/60 dark:text-emerald-400/60 uppercase tracking-widest mt-1">Status: {user?.two_factor_enabled ? 'Active' : 'Disabled'}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6 relative z-10">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Phone Number</label>
+                    <div className="relative">
+                      <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <input
+                        type="text"
+                        defaultValue={user?.phone || ''}
+                        placeholder="+254 700 000 000"
+                        onBlur={(e) => handleUpdateAccount({ phone: e.target.value })}
+                        className="w-full pl-12 pr-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all dark:text-white font-black"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">Enable 2FA</span>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase tracking-tight">OTP via SMS on Login</span>
+                    </div>
+                    <button
+                      onClick={() => handleUpdateAccount({ two_factor_enabled: !user?.two_factor_enabled })}
+                      className={`w-14 h-7 rounded-full transition-all relative ${user?.two_factor_enabled ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-white/10'}`}
+                    >
+                      <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${user?.two_factor_enabled ? 'left-8' : 'left-1'}`} />
+                    </button>
+                  </div>
+                </div>
+              </GlassCard>
+
+              <GlassCard className="p-10 border-white/20 dark:border-white/5 shadow-xl group">
+                <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100 dark:border-white/5">
+                  <div className="p-4 bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-2xl border border-blue-500/20">
+                    <ShieldCheck size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Account Info</h3>
+                    <p className="text-[10px] font-black text-blue-600/60 dark:text-blue-400/60 uppercase tracking-widest mt-1">Active Session</p>
                   </div>
                 </div>
 
@@ -579,13 +635,6 @@ const Settings = () => {
                   <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-white/5">
                     <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Role</span>
                     <span className="text-tytaj-600 dark:text-tytaj-400 font-black uppercase tracking-[0.2em] bg-tytaj-500/10 dark:bg-tytaj-500/20 px-4 py-1.5 rounded-xl text-[9px] border border-tytaj-500/20">{user?.role}</span>
-                  </div>
-                  <div className="flex flex-col gap-2 pt-2">
-                    <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">API URL</span>
-                    <div className="px-4 py-3 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-100 dark:border-white/5 flex items-center gap-3">
-                      <Terminal size={14} className="text-tytaj-500" />
-                      <span className="text-xs font-mono text-gray-400 dark:text-gray-500 truncate">{import.meta.env.VITE_API_URL}</span>
-                    </div>
                   </div>
                 </div>
               </GlassCard>
