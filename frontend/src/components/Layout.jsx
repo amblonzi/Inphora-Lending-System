@@ -32,10 +32,13 @@ const Layout = () => {
   const fetchNotifications = async () => {
     try {
       const data = await api.notifications.list({ limit: 10 });
-      setNotifications(data);
-      setUnreadCount(data.filter(n => !n.is_read).length);
+      const notificationsArray = Array.isArray(data) ? data : [];
+      setNotifications(notificationsArray);
+      setUnreadCount(notificationsArray.filter(n => !n.is_read).length);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
+      setNotifications([]);
+      setUnreadCount(0);
     }
   };
 

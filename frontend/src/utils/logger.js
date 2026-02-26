@@ -38,7 +38,42 @@ class Logger {
 
   error(message, error = null) {
     console.error(...this.formatMessage(LOG_LEVELS.ERROR, message, error));
-    // Future: Send to backend / Sentry
+    
+    // Send to backend error logging service
+    this.sendToBackend('error', message, error);
+  }
+
+  async sendToBackend(level, message, error = null) {
+    try {
+      const errorData = {
+        level,
+        message,
+        error: error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } : null,
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString(),
+        namespace: this.namespace
+      };
+
+      // Send to backend logging endpoint
+      const response = await fetch('/api/logs/error', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(errorData)
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to send error log to backend:', response.statusText);
+      }
+    } catch (e) {
+      console.warn('Error sending log to backend:', e);
+    }
   }
 
   debug(message, details = null) {

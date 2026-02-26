@@ -31,8 +31,16 @@ apiClient.interceptors.response.use(
 
     logger.error(`API Error ${status} on ${url}: ${message}`, error);
 
-    // AuthContext will handle logout via its own logic or a separate event listener if strictly needed,
-    // but for now we just reject the promise.
+    // Global 401 Handling: Redirect to login if unauthorized
+    if (status === 401 && !url.includes('/api/token')) {
+      logger.warn('Unauthorized access detected. Clearing session and redirecting.');
+      localStorage.removeItem('token');
+      // Only redirect if we're not already on the login page
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -86,6 +94,7 @@ export const api = {
     disburse: async (id) => (await apiClient.put(`/api/loans/${id}/disburse`)).data,
     repay: async (id, data) => (await apiClient.post(`/api/loans/${id}/repayments`, data)).data,
     getSchedule: async (id) => (await apiClient.get(`/api/loans/${id}/schedule`)).data,
+    exportStatement: async (id) => (await apiClient.get(`/api/loans/${id}/statement`, { responseType: 'blob' })),
   },
 
   loanProducts: {
@@ -128,7 +137,6 @@ export const api = {
   mpesa: {
     getUnmatched: async () => (await apiClient.get('/api/mpesa/transactions/unmatched')).data,
     reconcile: async (id, loanId) => (await apiClient.post(`/api/mpesa/transactions/${id}/reconcile?loan_id=${loanId}`)).data,
-    disburse: async (loanId) => (await apiClient.post(`/api/mpesa/b2c/disburse/${loanId}`)).data,
     stkPush: async (loanId, amount) => (await apiClient.post(`/api/mpesa/stk/push/${loanId}`, null, { params: { amount } })).data,
     updateSettings: async (settings) => (await apiClient.post('/api/mpesa/settings', settings)).data,
     getBalance: async () => (await apiClient.get('/api/mpesa/balance')).data,
@@ -139,6 +147,13 @@ export const api = {
   organization: {
     getConfig: async () => (await apiClient.get('/api/organization/config')).data,
     updateConfig: async (data) => (await apiClient.put('/api/organization/config', data)).data,
+  },
+
+  disbursements: {
+    mpesa: async (loanId, phone) => (await apiClient.post(`/api/disbursements/loans/${loanId}/disburse/mpesa`, null, { params: { phone } })).data,
+    bank: async (loanId, reference) => (await apiClient.post(`/api/disbursements/loans/${loanId}/disburse/bank`, null, { params: { bank_reference: reference } })).data,
+    manual: async (loanId, notes) => (await apiClient.post(`/api/disbursements/loans/${loanId}/disburse/manual`, null, { params: { notes } })).data,
+    getHistory: async (params) => (await apiClient.get('/api/disbursements/history', { params })).data,
   },
 
   notifications: {

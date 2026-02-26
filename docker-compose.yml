@@ -13,6 +13,7 @@ services:
       MYSQL_PASSWORD: ${INPHORA_DB_PASSWORD}
     volumes:
       - db_inphora_data:/var/lib/mysql
+      - ./db_config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
     networks:
       - app_network
     ports:
@@ -55,6 +56,7 @@ services:
       MYSQL_PASSWORD: ${TYTAHJ_DB_PASSWORD}
     volumes:
       - db_tytahj_data:/var/lib/mysql
+      - ./db_config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
     networks:
       - app_network
     ports:
@@ -97,6 +99,7 @@ services:
       MYSQL_PASSWORD: ${AMARI_DB_PASSWORD}
     volumes:
       - db_amari_data_v1:/var/lib/mysql
+      - ./db_config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
     networks:
       - app_network
     ports:
@@ -139,6 +142,7 @@ services:
       MYSQL_PASSWORD: ${IL_DB_PASSWORD}
     volumes:
       - db_il_data_v1:/var/lib/mysql
+      - ./db_config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
     networks:
       - app_network
     ports:

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Save, Key, CreditCard, MessageSquare, Lock, ShieldCheck, Smartphone, Radio, Settings as SettingsIcon, Terminal, Building, Upload } from 'lucide-react';
+import { Save, Key, CreditCard, MessageSquare, Lock, ShieldCheck, Smartphone, Radio, Settings as SettingsIcon, Terminal, Building, Upload, Monitor } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import AnimatedButton from '../components/ui/AnimatedButton';
 import { toast } from 'sonner';
@@ -158,6 +158,7 @@ const Settings = () => {
 
   const tabs = [
     { id: 'organization', label: 'Organization', icon: Building },
+    { id: 'pwa', label: 'PWA Setup', icon: Monitor },
     { id: 'payment', label: 'Payment Settings', icon: CreditCard },
     { id: 'sms', label: 'SMS Gateway', icon: MessageSquare },
     { id: 'account', label: 'Account Security', icon: Key },
@@ -409,6 +410,214 @@ const Settings = () => {
                         />
                       </div>
                     </div>
+                  </div>
+                </div>
+              ) : null}
+            </GlassCard>
+          </div>
+        )}
+
+        {/* PWA Settings Tab */}
+        {activeTab === 'pwa' && (
+          <div className="space-y-8">
+            <GlassCard className="p-10 border-white/20 dark:border-white/5 shadow-2xl relative overflow-hidden group">
+              <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-indigo-500/5 blur-[100px] group-hover:bg-indigo-500/10 transition-all duration-700" />
+
+              <div className="flex items-center gap-4 mb-10 pb-6 border-b border-gray-100 dark:border-white/5 relative z-10">
+                <div className="p-4 bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-indigo-500/20">
+                  <Monitor size={28} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">PWA Configuration</h3>
+                      <p className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-1">Mobile Web Experience</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Enable PWA</span>
+                      <button
+                        onClick={() => saveOrgConfig({ ...orgConfig, pwa_enabled: !orgConfig.pwa_enabled })}
+                        className={`w-14 h-7 rounded-full transition-all relative ${orgConfig.pwa_enabled ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-white/10'}`}
+                      >
+                        <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${orgConfig.pwa_enabled ? 'left-8' : 'left-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {orgLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="animate-pulse text-gray-400 dark:text-gray-600">Loading PWA configuration...</div>
+                </div>
+              ) : orgConfig ? (
+                <div className="space-y-10 relative z-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">App Short Name</label>
+                      <input
+                        type="text"
+                        maxLength={30}
+                        defaultValue={orgConfig.pwa_short_name || ''}
+                        onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_short_name: e.target.value })}
+                        placeholder="e.g. Inphora"
+                        className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:text-white font-black"
+                      />
+                      <p className="text-[10px] text-gray-400 ml-1">The name shown on the homescreen (Max 30 chars).</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Display Mode</label>
+                      <select
+                        defaultValue={orgConfig.pwa_display || 'standalone'}
+                        onChange={(e) => saveOrgConfig({ ...orgConfig, pwa_display: e.target.value })}
+                        className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:text-white font-black"
+                      >
+                        <option value="standalone">Standalone (Full App)</option>
+                        <option value="minimal-ui">Minimal UI</option>
+                        <option value="fullscreen">Fullscreen</option>
+                        <option value="browser">Browser Tab</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2 space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">PWA Description</label>
+                      <textarea
+                        defaultValue={orgConfig.pwa_description || ''}
+                        onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_description: e.target.value })}
+                        placeholder="Describe your app..."
+                        className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Theme Color</label>
+                      <div className="flex gap-3">
+                        <input
+                          type="color"
+                          defaultValue={orgConfig.pwa_theme_color || orgConfig.primary_color}
+                          onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_theme_color: e.target.value })}
+                          className="h-14 w-20 rounded-xl cursor-pointer border-2 border-gray-200 dark:border-white/10"
+                        />
+                        <input
+                          type="text"
+                          defaultValue={orgConfig.pwa_theme_color || orgConfig.primary_color}
+                          onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_theme_color: e.target.value })}
+                          className="flex-1 px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:text-white font-mono"
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-400 ml-1">Color of the browser status bar.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Splash Background</label>
+                      <div className="flex gap-3">
+                        <input
+                          type="color"
+                          defaultValue={orgConfig.pwa_splash_bg_color || '#ffffff'}
+                          onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_splash_bg_color: e.target.value })}
+                          className="h-14 w-20 rounded-xl cursor-pointer border-2 border-gray-200 dark:border-white/10"
+                        />
+                        <input
+                          type="text"
+                          defaultValue={orgConfig.pwa_splash_bg_color || '#ffffff'}
+                          onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_splash_bg_color: e.target.value })}
+                          className="flex-1 px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:text-white font-mono"
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-400 ml-1">Background color during splash screen.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Standard Icon (192x192)</label>
+                      <div className="flex items-center gap-4">
+                        <div className="relative group/icon w-20 h-20 rounded-2xl bg-gray-50 dark:bg-black/30 border-2 border-dashed border-gray-200 dark:border-white/10 flex items-center justify-center overflow-hidden">
+                          {orgConfig.pwa_icon_url ? (
+                            <img src={orgConfig.pwa_icon_url} alt="Icon 192" className="w-full h-full object-contain p-2" />
+                          ) : (
+                            <Smartphone className="text-gray-300 dark:text-gray-600" size={24} />
+                          )}
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/icon:opacity-100 transition-opacity">
+                            <label htmlFor="pwa-icon-upload" className="cursor-pointer text-white">
+                              <Upload size={16} />
+                            </label>
+                          </div>
+                        </div>
+                        <input
+                          id="pwa-icon-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            try {
+                              const response = await api.client.post('/api/upload', formData, {
+                                headers: { 'Content-Type': 'multipart/form-data' },
+                              });
+                              saveOrgConfig({ ...orgConfig, pwa_icon_url: response.data.url });
+                            } catch (err) { toast.error('Failed to upload icon'); }
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Large Icon (512x512)</label>
+                      <div className="flex items-center gap-4">
+                        <div className="relative group/icon-large w-20 h-20 rounded-2xl bg-gray-50 dark:bg-black/30 border-2 border-dashed border-gray-200 dark:border-white/10 flex items-center justify-center overflow-hidden">
+                          {orgConfig.pwa_icon_512_url ? (
+                            <img src={orgConfig.pwa_icon_512_url} alt="Icon 512" className="w-full h-full object-contain p-2" />
+                          ) : (
+                            <Smartphone className="text-gray-300 dark:text-gray-600" size={24} />
+                          )}
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover/icon-large:opacity-100 transition-opacity">
+                            <label htmlFor="pwa-icon-512-upload" className="cursor-pointer text-white">
+                              <Upload size={16} />
+                            </label>
+                          </div>
+                        </div>
+                        <input
+                          id="pwa-icon-512-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            try {
+                              const response = await api.client.post('/api/upload', formData, {
+                                headers: { 'Content-Type': 'multipart/form-data' },
+                              });
+                              saveOrgConfig({ ...orgConfig, pwa_icon_512_url: response.data.url });
+                            } catch (err) { toast.error('Failed to upload 512px icon'); }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 bg-indigo-500/5 dark:bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
+                    <h5 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Live Preview (manifest.json)</h5>
+                    <pre className="text-[10px] font-mono text-gray-600 dark:text-gray-400 bg-black/5 dark:bg-black/20 p-4 rounded-xl overflow-x-auto">
+                      {JSON.stringify({
+                        name: orgConfig.organization_name,
+                        short_name: orgConfig.pwa_short_name || orgConfig.organization_name.split(' ')[0],
+                        description: orgConfig.pwa_description || 'Inphora Lending Management System',
+                        start_url: orgConfig.pwa_start_url || '/',
+                        display: orgConfig.pwa_display || 'standalone',
+                        background_color: orgConfig.pwa_splash_bg_color || '#ffffff',
+                        theme_color: orgConfig.pwa_theme_color || orgConfig.primary_color,
+                        icons: [
+                          { src: orgConfig.pwa_icon_url || '/icon-192.png', sizes: '192x192', type: 'image/png' },
+                          { src: orgConfig.pwa_icon_512_url || '/icon-512.png', sizes: '512x512', type: 'image/png' }
+                        ]
+                      }, null, 2)}
+                    </pre>
                   </div>
                 </div>
               ) : null}

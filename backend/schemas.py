@@ -1,6 +1,44 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import date, datetime
+
+# Enhanced Authentication Schemas
+class TokenData(BaseModel):
+    email: str
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    two_factor_required: bool = False
+
+class TokenRefreshRequest(BaseModel):
+    refresh_token: str
+
+class TokenRefreshResponse(BaseModel):
+    success: bool
+    data: Dict[str, Any]
+    message: str
+
+class LogoutRequest(BaseModel):
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+
+class TwoFactorVerify(BaseModel):
+    email: str
+    otp: str
+
+class TwoFactorResponse(BaseModel):
+    success: bool
+    message: str
+
+# Standard API Response Schema
+class APIResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    data: Optional[Any] = None
+    error: Optional[str] = None
+    errors: Optional[List[str]] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 # User Schemas
 class UserBase(BaseModel):
@@ -301,8 +339,8 @@ class LoanBase(BaseModel):
     client_id: int
     product_id: int
     amount: float
-    duration_months: int # Renamed internally but keeping for backward compat or migrating
-    duration_count: Optional[int] = None # New generic count
+    duration_months: int = 1 # Default to 1 to avoid validation errors
+    duration_count: Optional[int] = None
     duration_unit: Optional[str] = "months"
     start_date: date
     repayment_frequency: str = "monthly"
@@ -467,6 +505,17 @@ class OrganizationConfigBase(BaseModel):
     currency: str = "KES"
     locale: str = "en-KE"
     timezone: str = "Africa/Nairobi"
+    
+    # PWA Settings
+    pwa_short_name: Optional[str] = None
+    pwa_description: Optional[str] = None
+    pwa_icon_url: Optional[str] = None
+    pwa_icon_512_url: Optional[str] = None
+    pwa_splash_bg_color: Optional[str] = None
+    pwa_theme_color: Optional[str] = None
+    pwa_display: str = "standalone"
+    pwa_start_url: str = "/"
+    pwa_enabled: bool = False
 
 class OrganizationConfigCreate(OrganizationConfigBase):
     pass
@@ -485,6 +534,17 @@ class OrganizationConfigUpdate(BaseModel):
     currency: Optional[str] = None
     locale: Optional[str] = None
     timezone: Optional[str] = None
+    
+    # PWA Settings
+    pwa_short_name: Optional[str] = None
+    pwa_description: Optional[str] = None
+    pwa_icon_url: Optional[str] = None
+    pwa_icon_512_url: Optional[str] = None
+    pwa_splash_bg_color: Optional[str] = None
+    pwa_theme_color: Optional[str] = None
+    pwa_display: Optional[str] = None
+    pwa_start_url: Optional[str] = None
+    pwa_enabled: Optional[bool] = None
 
 class OrganizationConfig(OrganizationConfigBase):
     id: int

@@ -478,8 +478,8 @@ const LoanApplication = () => {
 
       const payload = {
         ...formData,
-        amount: parseFloat(formData.amount),
-        duration_months: parseInt(formData.duration_months),
+        amount: parseFloat(formData.amount) || 0,
+        duration_months: parseInt(formData.duration_months) || 0,
         client_id: parseInt(formData.client_id),
         product_id: parseInt(formData.product_id),
         financial_analysis: bfaPayload

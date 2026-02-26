@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="build-version" content="1.0.4" />
   <meta name="theme-color" content="#3b82f6" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,6 +46,12 @@
         'il': 'Inphora - Lending System'
       };
       document.title = titles[brand] || 'Inphora Lending - Management System';
+
+      // Dynamic Manifest (PWA)
+      const manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = '/api/manifest.json';
+      document.head.appendChild(manifestLink);
 
       // Kill any existing service workers to ensure clean branching
       if ('serviceWorker' in navigator) {

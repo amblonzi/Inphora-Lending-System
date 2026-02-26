@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, ArrowRight, Smartphone, Fingerprint, Mail, MapPin, Zap, ShieldCheck } from 'lucide-react';
+import { Send, ArrowRight, Smartphone, Fingerprint, Mail, MapPin, Zap, ShieldCheck, Cpu, RefreshCw } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedButton from '../components/ui/AnimatedButton';

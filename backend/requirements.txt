@@ -13,3 +13,9 @@ aiofiles
 a2wsgi
 python-dateutil
 requests
+reportlab
+alembic
+pytest
+httpx
+redis
+slowapi

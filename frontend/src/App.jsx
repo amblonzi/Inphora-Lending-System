@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { GlobalErrorBoundary } from './components/ErrorBoundary';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { OrganizationProvider } from './context/OrganizationContext';
 import Layout from './components/Layout';
@@ -25,9 +25,9 @@ import InstallPrompt from './components/InstallPrompt';
 
 
 const PrivateRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-[#efeff4] dark:bg-[#0a0a0f] transition-colors duration-500 gap-6">
         <div className="w-16 h-16 border-4 border-tytaj-500/10 border-t-tytaj-500 rounded-full animate-spin shadow-lg shadow-tytaj-500/20"></div>
@@ -39,13 +39,13 @@ const PrivateRoute = ({ children }) => {
     );
   }
 
-  return user ? children : <Navigate to="/login" />;
+  return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
 const AdminRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  if (loading) return null;
+  if (isLoading) return null;
   if (user?.role !== 'admin') return <Navigate to="/" />;
   return children;
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../context/OrganizationContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -13,29 +13,32 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [otp, setOtp] = useState('');
     const [step, setStep] = useState('login'); // 'login' or 'otp'
-    const [userId, setUserId] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
-    const { login, verifyOtp } = useAuth();
+    const { login, verify2FA, error, clearError } = useAuth();
     const { orgConfig } = useOrganization();
     const navigate = useNavigate();
+
+    // Clear errors when component unmounts or inputs change
+    React.useEffect(() => {
+        return () => clearError();
+    }, [clearError]);
 
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        clearError();
+        
         try {
             const result = await login(email, password);
             if (result.two_factor_required) {
-                setUserId(result.user_id);
                 setStep('otp');
                 toast.info('Verification Required. Please enter the OTP sent to your phone.');
             } else if (result.success) {
-                toast.success('System synchronization successful. Welcome back.');
+                toast.success('Login successful. Welcome back!');
                 navigate('/');
-            } else {
-                toast.error(result.error || 'Authentication failure. Invalid credentials detected.');
             }
         } catch (err) {
-            toast.error('Critical authentication error. System unreachable.');
+            toast.error(err.message || 'Login failed. Please check your credentials.');
         } finally {
             setIsLoading(false);
         }
@@ -44,16 +47,16 @@ const Login = () => {
     const handleOtpSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        clearError();
+        
         try {
-            const result = await verifyOtp(userId, otp);
+            const result = await verify2FA(email, otp);
             if (result.success) {
                 toast.success('Security verification complete. Access granted.');
                 navigate('/');
-            } else {
-                toast.error(result.error || 'Invalid or expired security code.');
             }
         } catch (err) {
-            toast.error('Verification system error.');
+            toast.error(err.message || 'OTP verification failed. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -176,6 +179,7 @@ const Login = () => {
                                             <input
                                                 type="email"
                                                 required
+                                                data-testid="email-input"
                                                 className="w-full pl-14 pr-4 py-4.5 bg-gray-50/80 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition-all font-black text-gray-900 dark:text-white tracking-tight"
                                                 value={email}
                                                 onChange={(e) => setEmail(e.target.value)}
@@ -193,6 +197,7 @@ const Login = () => {
                                             <input
                                                 type="password"
                                                 required
+                                                data-testid="password-input"
                                                 className="w-full pl-14 pr-4 py-4.5 bg-gray-50/80 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition-all font-black text-gray-900 dark:text-white tracking-widest"
                                                 value={password}
                                                 onChange={(e) => setPassword(e.target.value)}
@@ -201,12 +206,13 @@ const Login = () => {
                                     </div>
 
                                     <div className="flex items-center gap-3 ml-1">
-                                        <input type="checkbox" id="remember" className="w-5 h-5 rounded-lg border-gray-300 dark:border-white/10 text-tytaj-600 focus:ring-tytaj-500/20 bg-white dark:bg-white/5" />
+                                        <input type="checkbox" id="remember" data-testid="remember-checkbox" className="w-5 h-5 rounded-lg border-gray-300 dark:border-white/10 text-tytaj-600 focus:ring-tytaj-500/20 bg-white dark:bg-white/5" />
                                         <label htmlFor="remember" className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest select-none cursor-pointer">Remember Me</label>
                                     </div>
 
                                     <AnimatedButton
                                         type="submit"
+                                        data-testid="login-button"
                                         className="w-full py-5 rounded-2xl text-lg font-black uppercase tracking-widest shadow-2xl shadow-tytaj-600/30 mt-6"
                                         isLoading={isLoading}
                                     >
@@ -223,6 +229,7 @@ const Login = () => {
                                                 type="text"
                                                 required
                                                 maxLength={6}
+                                                data-testid="otp-input"
                                                 placeholder="000000"
                                                 className="w-full pl-14 pr-4 py-5 bg-gray-50/80 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition-all font-black text-gray-900 dark:text-white tracking-[0.5em] text-center text-2xl"
                                                 value={otp}
@@ -233,6 +240,7 @@ const Login = () => {
 
                                     <AnimatedButton
                                         type="submit"
+                                        data-testid="verify-button"
                                         className="w-full py-5 rounded-2xl text-lg font-black uppercase tracking-widest shadow-2xl shadow-tytaj-600/30 mt-6"
                                         isLoading={isLoading}
                                     >
@@ -241,6 +249,7 @@ const Login = () => {
 
                                     <button
                                         type="button"
+                                        data-testid="back-to-login-button"
                                         onClick={() => setStep('login')}
                                         className="w-full text-xs font-black text-gray-400 hover:text-tytaj-500 transition-colors uppercase tracking-widest"
                                     >

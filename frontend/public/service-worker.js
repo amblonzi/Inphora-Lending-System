@@ -11,7 +11,7 @@ const getBrand = () => {
 };
 
 const brand = getBrand();
-const VERSION = 'v2.2'; // Bumped version to force refresh
+const VERSION = 'v2.3'; // Forced refresh for local env
 const CACHE_NAME = `inphora-${brand}-${VERSION}`;
 
 const urlsToCache = [
@@ -56,9 +56,9 @@ self.addEventListener('activate', (event) => {
 // Fetch event - Robust strategy implementation
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  const isNavigation = event.request.mode === 'navigate' || 
-                      url.pathname === '/' || 
-                      url.pathname === '/index.html';
+  const isNavigation = event.request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname === '/index.html';
 
   // Bypass cache for API requests
   if (url.pathname.startsWith('/api')) {
@@ -92,7 +92,7 @@ self.addEventListener('fetch', (event) => {
         if (response) {
           return response;
         }
-        
+
         // Dynamic caching for non-pre-cached assets
         return fetch(event.request)
           .then((networkResponse) => {
