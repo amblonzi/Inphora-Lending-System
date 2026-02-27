@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { GlobalErrorBoundary } from './components/ErrorBoundary';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
 import { ThemeProvider } from './context/ThemeContext';
 import { OrganizationProvider } from './context/OrganizationContext';
 import Layout from './components/Layout';

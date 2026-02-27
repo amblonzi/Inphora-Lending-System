@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Simple Redis for local development
+  redis:
+    image: redis:7-alpine
+    container_name: inphora_redis_local
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - app_network
+
+  # Single backend for testing
+  backend:
+    build: ./backend
+    container_name: inphora_backend_local
+    restart: always
+    environment:
+      DATABASE_URL: sqlite:///./app.db
+      SECRET_KEY: local_dev_secret_key_32_chars_min
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      ALLOWED_ORIGINS: http://localhost:3000,https://il.inphora.net
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    networks:
+      - app_network
+    volumes:
+      - ./backend:/app
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    container_name: inphora_frontend_local
+    restart: always
+    environment:
+      REACT_APP_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
