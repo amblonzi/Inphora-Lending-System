@@ -4,6 +4,8 @@ from typing import List, Optional
 from datetime import datetime
 import models, schemas, auth
 from database import get_db
+from tenant import get_tenant_db
+from pagination import paginate
 from utils import log_activity, create_notification
 
 router = APIRouter(prefix="/clients", tags=["clients"])
@@ -11,7 +13,7 @@ router = APIRouter(prefix="/clients", tags=["clients"])
 @router.post("/", response_model=schemas.Client)
 def create_client(
     client: schemas.ClientCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     # Check for duplicate phone or ID
@@ -25,7 +27,7 @@ def create_client(
     client_data = client.dict(exclude={"next_of_kin"})
     nok_data = client.next_of_kin
 
-    db_client = models.Client(**client_data, status='active', joined_at=datetime.utcnow())
+    db_client = models.Client(**client_data, status='active')
     db.add(db_client)
     db.commit()
     db.refresh(db_client)
@@ -47,16 +49,28 @@ def create_client(
         f"Client {db_client.first_name} {db_client.last_name} has been successfully registered.", 
         "info"
     )
+
+    # Notify Client via SMS
+    try:
+        from routers.sms import get_sms_service
+        from services.sms_service import SmsService
+        sms = get_sms_service(db)
+        formatted_phone = SmsService.format_phone(db_client.phone)
+        message = f"Hello {db_client.first_name}, welcome to Inphora! Your registration was successful. Your account ID is {db_client.id_number}."
+        sms.send_sms(formatted_phone, message)
+    except Exception as e:
+        print(f"Failed to send registration SMS: {e}")
+
     return db_client
 
-@router.get("/", response_model=List[schemas.Client])
+@router.get("/", response_model=schemas.PaginatedResponse[schemas.Client])
 def list_clients(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    size: int = 50,
     search: Optional[str] = None,
     branch_id: Optional[int] = None,
     customer_group_id: Optional[int] = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     query = db.query(models.Client)
@@ -75,12 +89,13 @@ def list_clients(
             (models.Client.phone.like(search_pattern)) |
             (models.Client.id_number.like(search_pattern))
         )
-    return query.offset(skip).limit(limit).all()
+    
+    return paginate(query, page, size, schemas.Client)
 
 @router.get("/{client_id}", response_model=schemas.Client)
 def get_client(
     client_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     client = db.query(models.Client).filter(models.Client.id == client_id).first()
@@ -92,7 +107,7 @@ def get_client(
 def update_client(
     client_id: int,
     client_update: schemas.ClientCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     db_client = db.query(models.Client).filter(models.Client.id == client_id).first()
@@ -127,7 +142,7 @@ def update_client(
 @router.delete("/{client_id}")
 def delete_client(
     client_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     client = db.query(models.Client).filter(models.Client.id == client_id).first()
@@ -146,7 +161,7 @@ def delete_client(
 def add_kyc_document(
     client_id: int,
     document: schemas.ClientKYCDocumentCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     client = db.query(models.Client).filter(models.Client.id == client_id).first()
@@ -165,7 +180,7 @@ def add_kyc_document(
 def delete_kyc_document(
     client_id: int,
     document_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     doc = db.query(models.ClientKYCDocument).filter(

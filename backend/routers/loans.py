@@ -1,20 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import date, timedelta, datetime
+from datetime import date, datetime, timedelta, timezone
+import math
 import models, schemas, auth
 from database import get_db
+from tenant import get_tenant_db
+from pagination import paginate, PaginatedResponse
 from utils import log_activity, create_notification
-from services.pdf_service import generate_loan_statement_pdf
-from services.sms_service import SmsService
-import math
 
 router = APIRouter(prefix="/loans", tags=["loans"])
 
 @router.post("/", response_model=schemas.Loan)
 def create_loan(
     loan: schemas.LoanCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     # Get product to snapshot interest rate
@@ -26,12 +26,17 @@ def create_loan(
     duration = loan.duration_count if loan.duration_count else loan.duration_months
     unit = loan.duration_unit
     
+    # Ensure start_date is a date object
+    start_date_obj = loan.start_date
+    if isinstance(start_date_obj, str):
+        start_date_obj = date.fromisoformat(start_date_obj)
+    
     if unit == "weeks":
-        end_date = loan.start_date + timedelta(weeks=duration)
+        end_date = start_date_obj + timedelta(weeks=duration)
     elif unit == "days":
-        end_date = loan.start_date + timedelta(days=duration)
+        end_date = start_date_obj + timedelta(days=duration)
     else: # Default to months
-        end_date = loan.start_date + timedelta(days=duration * 30)
+        end_date = start_date_obj + timedelta(days=duration * 30)
     
     # Snapshot fees
     processing_fee = 0.0
@@ -43,10 +48,11 @@ def create_loan(
             processing_fee = (loan.amount * product.processing_fee_percent) / 100
             
     # Create main Loan record
-    loan_data = loan.dict(exclude={"guarantors", "collateral", "referees", "financial_analysis", "duration_count", "duration_unit", "is_processing_fee_waived"})
+    loan_data = loan.dict(exclude={"guarantors", "collateral", "referees", "financial_analysis", "duration_count", "duration_unit", "is_processing_fee_waived", "start_date"})
     
     db_loan = models.Loan(
         **loan_data,
+        start_date=start_date_obj,
         interest_rate=product.interest_rate,
         end_date=end_date,
         duration_unit=unit,
@@ -61,6 +67,9 @@ def create_loan(
     db.add(db_loan)
     db.commit()
     db.refresh(db_loan)
+    
+    # ...] guarantors, collateral etc logic
+    # (Leaving unchanged to save context, but will ensure it uses the db provided)
     
     # Create Guarantors
     for g in loan.guarantors:
@@ -94,13 +103,29 @@ def create_loan(
         f"Loan Application #{db_loan.id} for KES {db_loan.amount:,.2f} initiated.", 
         "info"
     )
+
+    # Notify Client via SMS
+    try:
+        from routers.sms import get_sms_service
+        from services.sms_service import SmsService
+        sms = get_sms_service(db)
+        client = db.query(models.Client).filter(models.Client.id == db_loan.client_id).first()
+        if client and client.phone:
+            formatted_phone = SmsService.format_phone(client.phone)
+            message = f"Hello {client.first_name}, your application for Loan #{db_loan.id} of KES {db_loan.amount:,.2f} has been received and is under review. Thank you."
+            sms.send_sms(formatted_phone, message)
+    except Exception as e:
+        print(f"Failed to send application SMS: {e}")
+
     return db_loan
 
-@router.get("/", response_model=List[schemas.Loan])
+@router.get("/", response_model=schemas.PaginatedResponse[schemas.Loan])
 def list_loans(
+    page: int = 1,
+    size: int = 50,
     status: Optional[str] = None,
     client_id: Optional[int] = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     query = db.query(models.Loan)
@@ -108,7 +133,11 @@ def list_loans(
         query = query.filter(models.Loan.status == status)
     if client_id:
         query = query.filter(models.Loan.client_id == client_id)
-    loans = query.all()
+    
+    total = query.count()
+    pages = math.ceil(total / size) if total > 0 else 0
+    loans = query.offset((page - 1) * size).limit(size).all()
+
     for loan in loans:
         total_repaid = sum([r.amount for r in loan.repayments])
         accrued_penalties = 0.0
@@ -122,12 +151,19 @@ def list_loans(
         loan.accrued_penalties = round(accrued_penalties, 2)
         total_fees = (loan.processing_fee or 0.0) + (loan.insurance_fee or 0.0) + (loan.valuation_fee or 0.0) + (loan.registration_fee or 0.0)
         loan.outstanding_balance = round(loan.amount + ((loan.amount * loan.interest_rate)/100) + accrued_penalties + total_fees - total_repaid, 2)
-    return loans
+    
+    return PaginatedResponse(
+        items=loans,
+        total=total,
+        page=page,
+        size=size,
+        pages=pages
+    )
 
 @router.get("/{loan_id}", response_model=schemas.Loan)
 def get_loan(
     loan_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
@@ -156,7 +192,7 @@ def get_loan(
 def approve_loan(
     loan_id: int,
     approval: schemas.LoanApprovalRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
@@ -200,12 +236,29 @@ def approve_loan(
         f"Loan #{loan.id} has been {loan.status} at Level {loan.current_approval_level}.",
         "success" if approval.action == "approve" else "error"
     )
+
+    # Notify Client via SMS on final outcome
+    if loan.status in ["approved", "rejected"]:
+        try:
+            from routers.sms import get_sms_service
+            from services.sms_service import SmsService
+            sms = get_sms_service(db)
+            db.refresh(loan)
+            formatted_phone = SmsService.format_phone(loan.client.phone)
+            if loan.status == "approved":
+                message = f"Congratulations {loan.client.first_name}! Your Loan #{loan.id} for KES {loan.amount:,.2f} has been approved. You will receive the funds shortly."
+            else:
+                message = f"Hello {loan.client.first_name}, we regret to inform you that your application for Loan #{loan.id} was not successful. Reason: {approval.notes}"
+            sms.send_sms(formatted_phone, message)
+        except Exception as e:
+            print(f"Failed to send approval/rejection SMS: {e}")
+
     return {"message": f"Loan {loan.status}", "current_level": loan.current_approval_level}
 
 @router.put("/{loan_id}/disburse")
 def disburse_loan(
     loan_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
@@ -226,12 +279,25 @@ def disburse_loan(
         f"Loan #{loan.id} has been manually disbursed.", 
         "success"
     )
+
+    # Notify Client via SMS
+    try:
+        from routers.sms import get_sms_service
+        from services.sms_service import SmsService
+        sms = get_sms_service(db)
+        db.refresh(loan) # Ensure client relationship is loaded
+        formatted_phone = SmsService.format_phone(loan.client.phone)
+        message = f"Hello {loan.client.first_name}, KES {loan.amount:,.2f} for Loan #{loan.id} has been disbursed to your account. Thank you."
+        sms.send_sms(formatted_phone, message)
+    except Exception as e:
+        print(f"Failed to send disbursement SMS: {e}")
+
     return {"message": "Loan disbursed"}
 
 @router.get("/{loan_id}/schedule")
 def get_loan_schedule(
     loan_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
@@ -294,7 +360,7 @@ def get_loan_schedule(
 def create_repayment(
     loan_id: int,
     repayment_data: schemas.RepaymentCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     try:
@@ -365,21 +431,25 @@ def create_repayment(
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=f"Server Error: {str(e)}")
 
-@router.get("/{loan_id}/repayments")
+@router.get("/{loan_id}/repayments", response_model=schemas.PaginatedResponse[schemas.Repayment])
 def list_repayments(
     loan_id: int,
-    db: Session = Depends(get_db),
+    page: int = 1,
+    size: int = 50,
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
     if not loan:
         raise HTTPException(status_code=404, detail="Loan not found")
-    return loan.repayments
+    
+    query = db.query(models.Repayment).filter(models.Repayment.loan_id == loan_id)
+    return paginate(query, page, size, schemas.Repayment)
 
 @router.get("/{loan_id}/statement")
 def export_loan_statement(
     loan_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()

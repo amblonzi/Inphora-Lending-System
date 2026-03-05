@@ -26,30 +26,6 @@ services:
       timeout: 5s
       retries: 3
 
-  backend_il:
-    build: ./backend
-    container_name: inphora_backend_il
-    restart: always
-    environment:
-      DATABASE_URL: mysql+pymysql://il_user:${IL_DB_PASSWORD}@db_il/ildb
-      SECRET_KEY: ${IL_SECRET_KEY}
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: https://il.inphora.net
-      REDIS_URL: redis://redis:6379/0
-    depends_on:
-      db_il:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - app_network
-    ports:
-      - "8001:8000"
-
-  # ============================================
-  # AMARIFLOW.INPHORA.NET (Client B)
-  # ============================================
   db_amari:
     image: mariadb:10.6
     container_name: inphora_db_amari
@@ -64,38 +40,12 @@ services:
       - ./db_config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
     networks:
       - app_network
-    ports:
-      - "3307:3306"
     healthcheck:
       test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  backend_amari:
-    build: ./backend
-    container_name: inphora_backend_amari
-    restart: always
-    environment:
-      DATABASE_URL: mysql+pymysql://amari_user:${AMARI_DB_PASSWORD}@db_amari/amaridb
-      SECRET_KEY: ${AMARI_SECRET_KEY}
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: https://amariflow.inphora.net
-      REDIS_URL: redis://redis:6379/1
-    depends_on:
-      db_amari:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - app_network
-    ports:
-      - "8002:8000"
-
-  # ============================================
-  # TYTAHJ.INPHORA.NET (Client C)
-  # ============================================
   db_tytahj:
     image: mariadb:10.6
     container_name: inphora_db_tytahj
@@ -110,26 +60,34 @@ services:
       - ./db_config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
     networks:
       - app_network
-    ports:
-      - "3308:3306"
     healthcheck:
       test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  backend_tytahj:
+  # ============================================
+  # SHARED MULTI-TENANT BACKEND
+  # ============================================
+  backend:
     build: ./backend
-    container_name: inphora_backend_tytahj
+    container_name: inphora_backend
     restart: always
     environment:
-      DATABASE_URL: mysql+pymysql://tytahj_user:${TYTAHJ_DB_PASSWORD}@db_tytahj/tytahjdb
-      SECRET_KEY: ${TYTAHJ_SECRET_KEY}
+      # Default fallback DB
+      DATABASE_URL: mysql+pymysql://il_user:${IL_DB_PASSWORD}@db_il/ildb
+      SECRET_KEY: ${SECRET_KEY}
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: https://tytahj.inphora.net
-      REDIS_URL: redis://redis:6379/2
+      ALLOWED_ORIGINS: "*"
+      REDIS_URL: redis://redis:6379/0
+      # Multi-tenancy map
+      TENANT_DB_MAP: "il:mysql+pymysql://il_user:${IL_DB_PASSWORD}@db_il/ildb,amari:mysql+pymysql://amari_user:${AMARI_DB_PASSWORD}@db_amari/amaridb,tytahj:mysql+pymysql://tytahj_user:${TYTAHJ_DB_PASSWORD}@db_tytahj/tytahjdb"
     depends_on:
+      db_il:
+        condition: service_healthy
+      db_amari:
+        condition: service_healthy
       db_tytahj:
         condition: service_healthy
       redis:
@@ -137,7 +95,7 @@ services:
     networks:
       - app_network
     ports:
-      - "8003:8000"
+      - "8000:8000"
 
   # ============================================
   # SHARED SERVICES
@@ -181,9 +139,7 @@ services:
       - ./certbot/www:/var/www/certbot
     depends_on:
       - frontend
-      - backend_il
-      - backend_amari
-      - backend_tytahj
+      - backend
     networks:
       - app_network
 

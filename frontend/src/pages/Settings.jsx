@@ -179,7 +179,7 @@ const Settings = () => {
 
       {/* Segmented Control Tabs */}
       <div className="flex bg-gray-100 dark:bg-white/5 p-1.5 rounded-2xl w-full xl:w-fit border border-gray-100 dark:border-white/5 shadow-sm">
-        {tabs.map((tab) => (
+        {(Array.isArray(tabs) ? tabs : []).map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -699,16 +699,36 @@ const Settings = () => {
             <div className="space-y-8 relative z-10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">API Key</label>
+                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">SMS Provider</label>
+                  <select
+                    defaultValue={settings.sms_provider || 'simulator'}
+                    onChange={(e) => saveSetting('sms_provider', e.target.value, 'sms')}
+                    className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
+                  >
+                    <option value="simulator">Simulator (Debug)</option>
+                    <option value="africastalking">Africa's Talking</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">SMS Username (for AT)</label>
                   <input
                     type="text"
+                    defaultValue={settings.sms_username || ''}
+                    onBlur={(e) => saveSetting('sms_username', e.target.value, 'sms')}
+                    className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">API Key / Secret</label>
+                  <input
+                    type="password"
                     defaultValue={settings.sms_api_key || ''}
                     onBlur={(e) => saveSetting('sms_api_key', e.target.value, 'sms')}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Sender ID</label>
+                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Sender ID (Optional)</label>
                   <input
                     type="text"
                     defaultValue={settings.sms_sender_id || ''}
@@ -717,13 +737,40 @@ const Settings = () => {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Loan Approval Message</label>
-                <textarea
-                  defaultValue={settings.sms_loan_approval || 'Dear {client_name}, your capital deployment of KES {amount} has been synchronized.'}
-                  onBlur={(e) => saveSetting('sms_loan_approval', e.target.value, 'sms')}
-                  className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium min-h-[120px]"
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Welcome Message (Registration)</label>
+                  <textarea
+                    defaultValue={settings.sms_registration || 'Hello {first_name}, welcome to Inphora! Your registration was successful.'}
+                    onBlur={(e) => saveSetting('sms_registration', e.target.value, 'sms')}
+                    className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Loan Application Confirmation</label>
+                  <textarea
+                    defaultValue={settings.sms_loan_application || 'Hello {first_name}, your application for Loan #{loan_id} of KES {amount} has been received.'}
+                    onBlur={(e) => saveSetting('sms_loan_application', e.target.value, 'sms')}
+                    className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Loan Approval Message</label>
+                  <textarea
+                    defaultValue={settings.sms_loan_approval || 'Congratulations {first_name}! Your Loan #{loan_id} for KES {amount} has been approved.'}
+                    onBlur={(e) => saveSetting('sms_loan_approval', e.target.value, 'sms')}
+                    className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Loan Disbursement Message</label>
+                  <textarea
+                    defaultValue={settings.sms_loan_disbursement || 'Hello {first_name}, KES {amount} for Loan #{loan_id} has been disbursed to your account.'}
+                    onBlur={(e) => saveSetting('sms_loan_disbursement', e.target.value, 'sms')}
+                    className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
+                  />
+                </div>
               </div>
             </div>
           </GlassCard>
