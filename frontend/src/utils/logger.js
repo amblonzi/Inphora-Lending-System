@@ -60,11 +60,17 @@ class Logger {
       };
 
       // Send to backend logging endpoint
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       const response = await fetch('/api/logs/error', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(errorData)
       });
 

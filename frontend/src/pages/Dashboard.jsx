@@ -158,7 +158,7 @@ const Dashboard = () => {
                         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-tytaj-600 dark:text-tytaj-400">Dashboard</span>
                     </div>
                     <h2 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
-                        {getGreeting()}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-tytaj-600 to-orange-400 dark:from-tytaj-400 dark:to-orange-200">{user?.full_name?.split(' ')[0] || user?.email?.split('@')[0]}</span>!
+                        {getGreeting()}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-tytaj-600 to-orange-400 dark:from-tytaj-400 dark:to-orange-200">{user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}</span>!
                     </h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-3 font-medium text-lg tracking-tight">Managing <span className="text-gray-900 dark:text-white font-bold">{stats.active_loans} active loans</span> in the system.</p>
                 </div>

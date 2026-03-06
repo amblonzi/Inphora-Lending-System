@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 import models, schemas
 from database import get_db
+from tenant import get_tenant_db
 from auth import get_current_user
 
 router = APIRouter(
@@ -12,7 +13,7 @@ router = APIRouter(
 
 @router.get("/config", response_model=schemas.OrganizationConfig)
 def get_organization_config(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_tenant_db)
 ):
     """
     Get organization configuration settings.
@@ -39,7 +40,7 @@ def get_organization_config(
 @router.put("/config", response_model=schemas.OrganizationConfig)
 def update_organization_config(
     config_update: schemas.OrganizationConfigUpdate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(get_current_user)
 ):
     """

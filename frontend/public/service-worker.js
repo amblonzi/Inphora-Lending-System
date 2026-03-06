@@ -60,6 +60,12 @@ self.addEventListener('fetch', (event) => {
     url.pathname === '/' ||
     url.pathname === '/index.html';
 
+  // Ignore non-HTTP(s) schemes (e.g. chrome-extension:// or devtools)
+  if (!/^https?:/.test(event.request.url)) {
+    // this request cannot be cached by the service worker
+    return;
+  }
+
   // Bypass cache for API requests
   if (url.pathname.startsWith('/api')) {
     return;

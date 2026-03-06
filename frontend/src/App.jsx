@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { GlobalErrorBoundary } from './components/ErrorBoundary';
-import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { OrganizationProvider } from './context/OrganizationContext';
 import Layout from './components/Layout';
@@ -25,9 +25,9 @@ import InstallPrompt from './components/InstallPrompt';
 
 
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, loading } = useAuth();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-[#efeff4] dark:bg-[#0a0a0f] transition-colors duration-500 gap-6">
         <div className="w-16 h-16 border-4 border-tytaj-500/10 border-t-tytaj-500 rounded-full animate-spin shadow-lg shadow-tytaj-500/20"></div>
@@ -39,13 +39,13 @@ const PrivateRoute = ({ children }) => {
     );
   }
 
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  return user ? children : <Navigate to="/login" />;
 };
 
 const AdminRoute = ({ children }) => {
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth();
 
-  if (isLoading) return null;
+  if (loading) return null;
   if (user?.role !== 'admin') return <Navigate to="/" />;
   return children;
 };
@@ -71,20 +71,20 @@ function App() {
                   <Route path="loans" element={<Loans />} />
                   <Route path="loans/new" element={<LoanApplication />} />
                   <Route path="expenses" element={<Expenses />} />
-                  <Route path="/branches" element={<Branches />} />
-                  <Route path="/customer-groups" element={<CustomerGroups />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/mpesa" element={
+                  <Route path="branches" element={<Branches />} />
+                  <Route path="customer-groups" element={<CustomerGroups />} />
+                  <Route path="reports" element={<Reports />} />
+                  <Route path="mpesa" element={
                     <AdminRoute>
                       <MpesaManagement />
                     </AdminRoute>
                   } />
-                  <Route path="/audit-logs" element={
+                  <Route path="audit-logs" element={
                     <AdminRoute>
                       <AuditLogs />
                     </AdminRoute>
                   } />
-                  <Route path="/users" element={
+                  <Route path="users" element={
                     <AdminRoute>
                       <Users />
                     </AdminRoute>

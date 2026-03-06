@@ -1,37 +1,39 @@
 import pytest
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
-import os
+
 import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Add backend to sys.path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from database import Base, get_db
 from main import app
+from database import Base, get_db
 from models import User
-from auth import get_password_hash
+from auth_enhanced import get_password_hash
 
-# Use SQLite for testing
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Use a test database
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test_api.db"
 
 @pytest.fixture(scope="session")
 def db_engine():
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
+    engine.dispose() # Ensure all connections are closed
+    try:
+        if os.path.exists("./test_api.db"):
+            os.remove("./test_api.db")
+    except PermissionError:
+        pass # Database might still be locked on Windows, that's okay for cleanup
 
 @pytest.fixture(scope="function")
-def db(db_engine):
+def db_session(db_engine):
     connection = db_engine.connect()
     transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
+    Session = sessionmaker(bind=connection)
+    session = Session()
 
     yield session
 
@@ -40,27 +42,38 @@ def db(db_engine):
     connection.close()
 
 @pytest.fixture(scope="function")
-def client(db):
+def client(db_session):
     def override_get_db():
         try:
-            yield db
+            yield db_session
         finally:
             pass
-
+    
     app.dependency_overrides[get_db] = override_get_db
+    from tenant import get_tenant_db
+    app.dependency_overrides[get_tenant_db] = override_get_db
+    
     with TestClient(app) as c:
         yield c
+    
     app.dependency_overrides.clear()
 
 @pytest.fixture(scope="function")
-def test_user(db):
+def test_user(db_session):
     user = User(
         email="test@example.com",
-        full_name="Test User",
         hashed_password=get_password_hash("password123"),
+        full_name="Test User",
         role="admin",
         is_active=True
     )
-    db.add(user)
-    db.commit()
+    db_session.add(user)
+    db_session.commit()
     return user
+
+@pytest.fixture(scope="function")
+def auth_headers(client, test_user):
+    login_data = {"username": "test@example.com", "password": "password123"}
+    response = client.post("/api/token", data=login_data)
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}

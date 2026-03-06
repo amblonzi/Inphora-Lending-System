@@ -5,6 +5,7 @@ from typing import List, Optional
 from datetime import date, datetime, timedelta
 import models, schemas, auth
 from database import get_db
+from tenant import get_tenant_db
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -12,7 +13,7 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 def get_profit_loss(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     try:
@@ -101,7 +102,7 @@ def get_profit_loss(
 
 @router.get("/portfolio-at-risk")
 def get_portfolio_at_risk(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     # PAR logic: Analyze active loans
@@ -181,7 +182,7 @@ def get_portfolio_at_risk(
 
 @router.get("/portfolio-health")
 def get_portfolio_health(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Detailed portfolio health analytics including product performance distribution."""
@@ -213,7 +214,7 @@ def get_portfolio_health(
 @router.get("/client-trends")
 def get_client_trends(
     months: int = 12,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Monthly client acquisition trends."""

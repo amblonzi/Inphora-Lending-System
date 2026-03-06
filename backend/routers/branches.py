@@ -3,24 +3,26 @@ from sqlalchemy.orm import Session
 from typing import List
 import models, schemas, auth
 from database import get_db
+from tenant import get_tenant_db
+from pagination import paginate
 
 router = APIRouter(tags=["branches"])
 
-@router.get("/branches/", response_model=List[schemas.Branch])
+@router.get("/branches/", response_model=schemas.PaginatedResponse[schemas.Branch])
 def list_branches(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
+    page: int = 1,
+    size: int = 50,
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """List all branches"""
-    branches = db.query(models.Branch).offset(skip).limit(limit).all()
-    return branches
+    query = db.query(models.Branch)
+    return paginate(query, page, size, schemas.Branch)
 
 @router.post("/branches/", response_model=schemas.Branch)
 def create_branch(
     branch: schemas.BranchCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Create a new branch"""
@@ -38,7 +40,7 @@ def create_branch(
 @router.get("/branches/{branch_id}", response_model=schemas.Branch)
 def get_branch(
     branch_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Get a specific branch"""
@@ -51,7 +53,7 @@ def get_branch(
 def update_branch(
     branch_id: int,
     branch: schemas.BranchCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Update a branch"""
@@ -75,7 +77,7 @@ def update_branch(
 @router.delete("/branches/{branch_id}")
 def delete_branch(
     branch_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Delete a branch"""

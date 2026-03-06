@@ -2,19 +2,18 @@ import React, { useState, useEffect } from 'react';
 import {
   X, CheckCircle, XCircle, Calendar,
   DollarSign, FileText, User, CreditCard,
-  MapPin, Clock, AlertCircle, Phone, Fingerprint, Activity, ReceiptText, ShieldCheck, History
+  MapPin, Clock, AlertCircle, Phone, Fingerprint, Activity, ReceiptText, ShieldCheck, History, RefreshCw
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { toast } from 'sonner';
 import DisbursementModal from './DisbursementModal';
 import RepaymentModal from './RepaymentModal';
 import GlassCard from './ui/GlassCard';
 import AnimatedButton from './ui/AnimatedButton';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 
 const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
-  const { user } = useAuth();
+  // const { } = useAuth();
   const [activeLoan, setActiveLoan] = useState(loan);
   const [activeTab, setActiveTab] = useState('overview');
   const [client, setClient] = useState(null);
@@ -39,7 +38,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
       link.click();
       link.remove();
       toast.success("Statement exported successfully");
-    } catch (error) {
+    } catch {
       toast.error("Failed to export statement");
     } finally {
       setExporting(false);
@@ -51,7 +50,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
       const updated = await api.loans.get(loan.id);
       setActiveLoan(updated);
       onUpdate();
-    } catch (error) {
+    } catch {
       toast.error("Failed to refresh loan details");
     }
   };
@@ -73,8 +72,8 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
     try {
       const data = await api.clients.get(activeLoan.client_id);
       setClient(data);
-    } catch (error) {
-      console.error("Failed to fetch client details", error);
+    } catch (err) {
+      console.error("Failed to fetch client details", err);
     }
   };
 
@@ -83,7 +82,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
     try {
       const data = await api.loans.getSchedule(activeLoan.id);
       setSchedule(data);
-    } catch (error) {
+    } catch {
       toast.error("Failed to load repayment schedule");
     } finally {
       setLoadingSchedule(false);
@@ -115,7 +114,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
         setShowRejectInput(false);
         setRejectionReason('');
       }
-    } catch (error) {
+    } catch {
       toast.error(`Failed to ${action} loan`);
     } finally {
       setActionLoading(false);
@@ -131,7 +130,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
   };
 
   // Calculate Real-time Balances
-  const totalRepaid = activeLoan.repayments?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0;
+  const totalRepaid = (Array.isArray(activeLoan.repayments) ? activeLoan.repayments : []).reduce((sum, r) => sum + (r.amount || 0), 0) || 0;
   const projectedTotal = activeLoan.amount + (activeLoan.amount * activeLoan.interest_rate / 100);
   const outstandingBalance = Math.max(0, projectedTotal - totalRepaid);
   const progressPercent = Math.min((totalRepaid / projectedTotal) * 100, 100);
@@ -177,7 +176,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Start Date:</span>
                     <span className="text-[10px] font-black text-gray-900 dark:text-gray-300 uppercase tracking-widest bg-white dark:bg-white/5 px-2 py-0.5 rounded border border-gray-100 dark:border-white/5">
-                      {new Date(activeLoan.start_date).toLocaleDateString()}
+                      {activeLoan.start_date ? new Date(activeLoan.start_date).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -213,8 +212,8 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${activeTab === tab.id
-                    ? 'bg-white dark:bg-slate-900 text-tytaj-600 dark:text-tytaj-400 shadow-sm ring-1 ring-gray-100 dark:ring-white/10'
-                    : 'text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-200'
+                  ? 'bg-white dark:bg-slate-900 text-tytaj-600 dark:text-tytaj-400 shadow-sm ring-1 ring-gray-100 dark:ring-white/10'
+                  : 'text-gray-500 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
               >
                 <tab.icon size={14} />
@@ -239,7 +238,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                     <GlassCard className="!bg-blue-500/5 border-blue-500/10 p-6 flex flex-col items-center text-center group hover:!bg-blue-500/10 transition-all">
                       <DollarSign className="text-blue-500 mb-3 group-hover:scale-110 transition-transform" size={24} />
                       <span className="text-[10px] font-black text-blue-600/60 dark:text-blue-400/60 uppercase tracking-[0.2em] mb-1">Principal Amount</span>
-                      <div className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">KES {activeLoan.amount.toLocaleString()}</div>
+                      <div className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">KES {activeLoan.amount?.toLocaleString() ?? '0'}</div>
                     </GlassCard>
 
                     <GlassCard className="!bg-emerald-500/5 border-emerald-500/10 p-6 flex flex-col items-center text-center group hover:!bg-emerald-500/10 transition-all relative overflow-hidden">
@@ -247,14 +246,14 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                       <div className="relative z-10 flex flex-col items-center">
                         <CheckCircle className="text-emerald-500 mb-3 group-hover:scale-110 transition-transform" size={24} />
                         <span className="text-[10px] font-black text-emerald-600/60 dark:text-emerald-400/60 uppercase tracking-[0.2em] mb-1">Total Repaid</span>
-                        <div className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">KES {totalRepaid.toLocaleString()}</div>
+                        <div className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">KES {totalRepaid?.toLocaleString() ?? '0'}</div>
                       </div>
                     </GlassCard>
 
                     <GlassCard className="!bg-rose-500/5 border-rose-500/10 p-6 flex flex-col items-center text-center group hover:!bg-rose-500/10 transition-all">
                       <AlertCircle className="text-rose-500 mb-3 group-hover:scale-110 transition-transform" size={24} />
                       <span className="text-[10px] font-black text-rose-600/60 dark:text-rose-400/60 uppercase tracking-[0.2em] mb-1">Outstanding Bal.</span>
-                      <div className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">KES {outstandingBalance.toLocaleString()}</div>
+                      <div className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter leading-none">KES {outstandingBalance?.toLocaleString() ?? '0'}</div>
                     </GlassCard>
 
                     <GlassCard className="!bg-purple-500/5 border-purple-500/10 p-6 flex flex-col items-center text-center group hover:!bg-purple-500/10 transition-all">
@@ -274,15 +273,15 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
                         <div className="space-y-1">
                           <span className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Sales (Mo)</span>
-                          <span className="text-lg font-black text-gray-900 dark:text-gray-100 tracking-tighter">KES {activeLoan.financial_analysis.monthly_sales.toLocaleString()}</span>
+                          <span className="text-lg font-black text-gray-900 dark:text-gray-100 tracking-tighter">KES {activeLoan.financial_analysis.monthly_sales?.toLocaleString() ?? '0'}</span>
                         </div>
                         <div className="space-y-1">
                           <span className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Expenses (Mo)</span>
-                          <span className="text-lg font-black text-gray-900 dark:text-gray-100 tracking-tighter text-rose-500/80">KES {activeLoan.financial_analysis.expenditure.toLocaleString()}</span>
+                          <span className="text-lg font-black text-gray-900 dark:text-gray-100 tracking-tighter text-rose-500/80">KES {activeLoan.financial_analysis.expenditure?.toLocaleString() ?? '0'}</span>
                         </div>
                         <div className="space-y-1">
                           <span className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest block">Net Income</span>
-                          <span className="text-lg font-black text-emerald-500 tracking-tighter">KES {activeLoan.financial_analysis.net_income.toLocaleString()}</span>
+                          <span className="text-lg font-black text-emerald-500 tracking-tighter">KES {activeLoan.financial_analysis.net_income?.toLocaleString() ?? '0'}</span>
                         </div>
                       </div>
                     </GlassCard>
@@ -341,8 +340,8 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                               onClick={() => handleApproval('approve')}
                               disabled={actionLoading}
                               className={`w-full py-5 rounded-[24px] text-[12px] font-black uppercase tracking-widest shadow-2xl transition-all ${activeLoan.current_approval_level === 1
-                                  ? 'bg-amber-600 shadow-amber-600/30'
-                                  : 'bg-emerald-600 shadow-emerald-600/30'
+                                ? 'bg-amber-600 shadow-amber-600/30'
+                                : 'bg-emerald-600 shadow-emerald-600/30'
                                 }`}
                             >
                               <CheckCircle size={20} className="mr-2" />
@@ -358,20 +357,20 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                           </div>
 
                           {/* Approval History Snippet */}
-                          {activeLoan.approvals?.length > 0 && (
+                          {Array.isArray(activeLoan.approvals) && activeLoan.approvals.length > 0 && (
                             <div className="p-6 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/10">
                               <div className="flex items-center gap-2 mb-4">
                                 <History size={14} className="text-gray-400" />
                                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Approval History</span>
                               </div>
                               <div className="space-y-3">
-                                {activeLoan.approvals.map((app, idx) => (
+                                {(Array.isArray(activeLoan.approvals) ? activeLoan.approvals : []).map((app, idx) => (
                                   <div key={idx} className="flex items-center justify-between text-[10px] font-black uppercase tracking-tight">
                                     <div className="flex items-center gap-2">
                                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                       <span className="text-gray-500">Level {app.level} Verified</span>
                                     </div>
-                                    <span className="text-gray-400">{new Date(app.created_at).toLocaleDateString()}</span>
+                                    <span className="text-gray-400">{app.created_at ? new Date(app.created_at).toLocaleDateString() : 'N/A'}</span>
                                   </div>
                                 ))}
                               </div>
@@ -443,13 +442,13 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                   exit={{ opacity: 0, x: 10 }}
                   className="grid grid-cols-1 md:grid-cols-2 gap-6"
                 >
-                  {activeLoan.guarantors?.length === 0 ? (
+                  {!Array.isArray(activeLoan.guarantors) || activeLoan.guarantors.length === 0 ? (
                     <div className="col-span-full py-20 text-center space-y-4 opacity-50">
                       <User className="mx-auto text-gray-400" size={48} />
                       <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em]">No guarantors listed.</p>
                     </div>
                   ) : (
-                    activeLoan.guarantors?.map((g, i) => (
+                    (Array.isArray(activeLoan.guarantors) ? activeLoan.guarantors : []).map((g, i) => (
                       <GlassCard key={g.id} delay={i * 0.1} hoverEffect className="p-6 border-white/20 dark:border-white/5 relative group">
                         <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-tytaj-500/5 blur-[50px] opacity-0 group-hover:opacity-100 transition-opacity" />
                         <div className="flex justify-between items-start mb-6">
@@ -490,7 +489,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                     <div className="flex items-center gap-2 mb-6">
                       <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.3em]">Collateral Assets</span>
                     </div>
-                    {activeLoan.collateral?.length === 0 ? (
+                    {!Array.isArray(activeLoan.collateral) || activeLoan.collateral.length === 0 ? (
                       <div className="py-10 text-center opacity-40">
                         <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest italic">No collateral listed.</p>
                       </div>
@@ -506,14 +505,14 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                            {activeLoan.collateral?.map(c => (
+                            {(Array.isArray(activeLoan.collateral) ? activeLoan.collateral : []).map(c => (
                               <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                                 <td className="px-6 py-5 font-black text-gray-900 dark:text-white tracking-tight">{c.name}</td>
                                 <td className="px-6 py-5 text-gray-500 dark:text-gray-400 font-mono text-xs">{c.serial_number || '-'}</td>
                                 <td className="px-6 py-5">
                                   <span className="px-3 py-1 rounded-lg bg-gray-100 dark:bg-white/5 text-[9px] font-black uppercase text-gray-600 dark:text-gray-400 tracking-widest border border-gray-200 dark:border-white/5">{c.condition || 'Good'}</span>
                                 </td>
-                                <td className="px-6 py-5 text-right font-black text-tytaj-600 dark:text-tytaj-400">KES {c.estimated_value.toLocaleString()}</td>
+                                <td className="px-6 py-5 text-right font-black text-tytaj-600 dark:text-tytaj-400">KES {c.estimated_value?.toLocaleString() ?? '0'}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -526,13 +525,13 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                     <div className="flex items-center gap-2 mb-6">
                       <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.3em]">Referees</span>
                     </div>
-                    {activeLoan.referees?.length === 0 ? (
+                    {!Array.isArray(activeLoan.referees) || activeLoan.referees.length === 0 ? (
                       <div className="py-10 text-center opacity-40">
                         <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest italic">No referees listed.</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {activeLoan.referees?.map(r => (
+                        {(Array.isArray(activeLoan.referees) ? activeLoan.referees : []).map(r => (
                           <GlassCard key={r.id} className="p-6 border-white/20 dark:border-white/5 flex justify-between items-center group">
                             <div className="flex items-center gap-4">
                               <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center text-gray-400 group-hover:text-tytaj-500 transition-colors">
@@ -572,13 +571,13 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                         <GlassCard className="!bg-white dark:!bg-white/5 p-6 text-center border-white/20 dark:border-white/10 shadow-lg">
                           <div className="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.3em] mb-2">Total Amount</div>
-                          <div className="font-black text-gray-900 dark:text-white text-2xl tracking-tighter">KES {schedule.total_amount?.toLocaleString()}</div>
+                          <div className="font-black text-gray-900 dark:text-white text-2xl tracking-tighter">KES {schedule.total_amount?.toLocaleString() ?? '0'}</div>
                         </GlassCard>
                         <GlassCard className="!bg-tytaj-500/10 p-6 text-center border-tytaj-500/20 shadow-lg relative overflow-hidden group">
                           <div className="absolute inset-0 bg-tytaj-500/5 animate-pulse" />
                           <div className="relative z-10">
                             <div className="text-[9px] font-black text-tytaj-600 dark:text-tytaj-400 uppercase tracking-[0.3em] mb-2">Installment</div>
-                            <div className="font-black text-tytaj-600 dark:text-tytaj-400 text-3xl tracking-tighter leading-none">KES {schedule.monthly_payment?.toLocaleString()}</div>
+                            <div className="font-black text-tytaj-600 dark:text-tytaj-400 text-3xl tracking-tighter leading-none">KES {schedule.monthly_payment?.toLocaleString() ?? '0'}</div>
                           </div>
                         </GlassCard>
                         <GlassCard className="!bg-white dark:!bg-white/5 p-6 text-center border-white/20 dark:border-white/10 shadow-lg">
@@ -602,18 +601,18 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                            {schedule.schedule?.map((row) => (
+                            {Array.isArray(schedule.schedule) && schedule.schedule.map((row) => (
                               <tr key={row.installment_number} className="hover:bg-tytaj-500/5 dark:hover:bg-tytaj-500/10 transition-colors">
                                 <td className="px-6 py-5 text-[10px] font-black text-gray-400 dark:text-gray-600">{row.installment_number.toString().padStart(2, '0')}</td>
                                 <td className="px-6 py-5 font-black text-gray-900 dark:text-white text-xs tracking-tight">
-                                  {new Date(row.due_date).toLocaleDateString()}
+                                  {row.due_date ? new Date(row.due_date).toLocaleDateString() : 'N/A'}
                                 </td>
                                 <td className="px-6 py-5 text-right font-black text-tytaj-600 dark:text-tytaj-400">
-                                  {row.amount_due.toLocaleString()}
+                                  {row.amount_due?.toLocaleString() ?? '0'}
                                 </td>
-                                <td className="px-6 py-5 text-right text-xs font-bold text-gray-500 dark:text-gray-400">{row.principal_amount.toLocaleString()}</td>
-                                <td className="px-6 py-5 text-right text-xs font-bold text-gray-500 dark:text-gray-400">{row.interest_amount.toLocaleString()}</td>
-                                <td className="px-6 py-5 text-right font-black text-gray-900 dark:text-white">{row.balance.toLocaleString()}</td>
+                                <td className="px-6 py-5 text-right text-xs font-bold text-gray-500 dark:text-gray-400">{row.principal_amount?.toLocaleString() ?? '0'}</td>
+                                <td className="px-6 py-5 text-right text-xs font-bold text-gray-500 dark:text-gray-400">{row.interest_amount?.toLocaleString() ?? '0'}</td>
+                                <td className="px-6 py-5 text-right font-black text-gray-900 dark:text-white">{row.balance?.toLocaleString() ?? '0'}</td>
                               </tr>
                             ))}
                           </tbody>

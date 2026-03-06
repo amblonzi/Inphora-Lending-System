@@ -4,12 +4,13 @@ from sqlalchemy import func
 from datetime import datetime
 import models, auth
 from database import get_db
+from tenant import get_tenant_db
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/stats")
 def get_dashboard_stats(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     # Total loans disbursed (sum of active and completed loans)
@@ -45,7 +46,7 @@ def get_dashboard_stats(
 
 @router.get("/trends")
 def get_dashboard_trends(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     from datetime import date, timedelta

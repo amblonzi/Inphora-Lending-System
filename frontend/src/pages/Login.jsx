@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext.jsx';
+import { useAuth } from '../context/AuthContext';
 import { useOrganization } from '../context/OrganizationContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -27,7 +27,7 @@ const Login = () => {
         e.preventDefault();
         setIsLoading(true);
         clearError();
-        
+
         try {
             const result = await login(email, password);
             if (result.two_factor_required) {
@@ -48,7 +48,7 @@ const Login = () => {
         e.preventDefault();
         setIsLoading(true);
         clearError();
-        
+
         try {
             const result = await verify2FA(email, otp);
             if (result.success) {

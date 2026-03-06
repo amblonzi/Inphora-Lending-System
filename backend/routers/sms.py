@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import models, schemas, auth
 from database import get_db
+from tenant import get_tenant_db
 from services.sms_service import SmsService
 from utils import log_activity
 
@@ -22,7 +23,7 @@ def get_sms_service(db: Session):
 def send_loan_reminder(
     loan_id: int,
     message_custom: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
@@ -56,7 +57,7 @@ def send_loan_reminder(
 @router.post("/settings")
 def update_sms_settings(
     settings: dict,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     for key, value in settings.items():

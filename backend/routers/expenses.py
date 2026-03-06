@@ -3,13 +3,15 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import models, schemas, auth
 from database import get_db
+from tenant import get_tenant_db
+from pagination import paginate
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 @router.post("/categories/", response_model=schemas.ExpenseCategory)
 def create_expense_category(
     category: schemas.ExpenseCategoryCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     db_category = models.ExpenseCategory(**category.dict())
@@ -18,17 +20,20 @@ def create_expense_category(
     db.refresh(db_category)
     return db_category
 
-@router.get("/categories/", response_model=List[schemas.ExpenseCategory])
+@router.get("/categories/", response_model=schemas.PaginatedResponse[schemas.ExpenseCategory])
 def list_expense_categories(
-    db: Session = Depends(get_db),
+    page: int = 1,
+    size: int = 50,
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    return db.query(models.ExpenseCategory).filter(models.ExpenseCategory.is_active == True).all()
+    query = db.query(models.ExpenseCategory).filter(models.ExpenseCategory.is_active == True)
+    return paginate(query, page, size, schemas.ExpenseCategory)
 
 @router.post("/", response_model=schemas.Expense)
 def create_expense(
     expense: schemas.ExpenseCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     # Determine category name fallback if ID provided
@@ -60,11 +65,13 @@ def create_expense(
     db.refresh(db_expense)
     return db_expense
 
-@router.get("/", response_model=List[schemas.Expense])
+@router.get("/", response_model=schemas.PaginatedResponse[schemas.Expense])
 def list_expenses(
+    page: int = 1,
+    size: int = 50,
     category_id: Optional[int] = None,
     is_recurring: Optional[bool] = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     query = db.query(models.Expense)
@@ -73,12 +80,13 @@ def list_expenses(
     if is_recurring is not None:
         query = query.filter(models.Expense.is_recurring == is_recurring)
         
-    return query.order_by(models.Expense.date.desc()).all()
+    query = query.order_by(models.Expense.date.desc())
+    return paginate(query, page, size, schemas.Expense)
 
 @router.delete("/{expense_id}")
 def delete_expense(
     expense_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     expense = db.query(models.Expense).filter(models.Expense.id == expense_id).first()

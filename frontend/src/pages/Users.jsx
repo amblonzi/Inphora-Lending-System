@@ -35,7 +35,7 @@ const Users = () => {
         try {
             if (selectedUser) {
                 const updated = await api.users.update(selectedUser.id, formData);
-                setUsers(users.map(u => u.id === selectedUser.id ? updated : u));
+                setUsers((Array.isArray(users) ? users : []).map(u => u.id === selectedUser.id ? updated : u));
                 toast.success('User saved successfully');
             } else {
                 const created = await api.users.create(formData);
@@ -54,7 +54,7 @@ const Users = () => {
             const updated = await api.users.update(user.id, {
                 is_active: !user.is_active
             });
-            setUsers(users.map(u => u.id === user.id ? updated : u));
+            setUsers((Array.isArray(users) ? users : []).map(u => u.id === user.id ? updated : u));
             toast.success(`User ${updated.is_active ? 'Activated' : 'Suspended'}`);
         } catch (error) {
             toast.error('Failed to update user status');
@@ -85,7 +85,7 @@ const Users = () => {
                     [1, 2, 3, 4, 5, 6].map(i => (
                         <div key={i} className="h-[320px] bg-gray-100/50 dark:bg-white/5 rounded-3xl animate-pulse border border-gray-100 dark:border-white/10" />
                     ))
-                ) : users.map((user, idx) => (
+                ) : (Array.isArray(users) ? users : []).map((user, idx) => (
                     <GlassCard key={user.id} delay={idx * 0.1} hoverEffect className="p-8 relative overflow-hidden group border-white/20 dark:border-white/5 shadow-xl">
                         {/* Decorative Glow */}
                         <div className={`absolute -top-16 -right-16 w-40 h-40 rounded-full blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 ${user.is_active ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`} />

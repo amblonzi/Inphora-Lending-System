@@ -1,15 +1,27 @@
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, field_validator
+from typing import Optional, List, Dict, Any, Generic, TypeVar
 from datetime import date, datetime
+
+T = TypeVar("T")
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    total: int
+    page: int
+    size: int
+    pages: int
 
 # Enhanced Authentication Schemas
 class TokenData(BaseModel):
-    email: str
+    email: Optional[str] = None
 
 class LoginResponse(BaseModel):
-    access_token: str
-    token_type: str
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    token_type: Optional[str] = "bearer"
     two_factor_required: bool = False
+    user_id: Optional[int] = None
+    message: Optional[str] = None
 
 class TokenRefreshRequest(BaseModel):
     refresh_token: str
@@ -91,16 +103,6 @@ class ActivityLog(ActivityLogBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
-
-class TokenData(BaseModel):
-    email: Optional[str] = None
-
-class LoginResponse(BaseModel):
-    access_token: Optional[str] = None
-    token_type: Optional[str] = "bearer"
-    two_factor_required: bool = False
-    user_id: Optional[int] = None
-    message: Optional[str] = None
 
 class OTPVerify(BaseModel):
     user_id: int
@@ -204,6 +206,13 @@ class ClientBase(BaseModel):
     bank_account_number: Optional[str] = None
     bank_account_name: Optional[str] = None
     preferred_disbursement: str = "mpesa"
+
+    @field_validator('dob', mode='before')
+    @classmethod
+    def empty_string_to_none(cls, v):
+        if v == "":
+            return None
+        return v
 
 class ClientCreate(ClientBase):
     branch_id: Optional[int] = None

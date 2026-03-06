@@ -21,7 +21,7 @@ services:
       SECRET_KEY: local_dev_secret_key_32_chars_min
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: http://localhost:3000,https://il.inphora.net
+      ALLOWED_ORIGINS: http://localhost:5173,https://il.inphora.net
       REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
@@ -34,13 +34,14 @@ services:
 
   # Frontend
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
     container_name: inphora_frontend_local
     restart: always
-    environment:
-      REACT_APP_API_BASE_URL: http://localhost:8000
     ports:
-      - "3000:3000"
+      - "5173:80"
     depends_on:
       - backend
     networks:

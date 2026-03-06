@@ -6,6 +6,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# Accept VITE_API_URL as build argument (Vite embeds env vars at build time)
+ARG VITE_API_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+
 COPY . .
 RUN chmod +x node_modules/.bin/*
 RUN npm run build

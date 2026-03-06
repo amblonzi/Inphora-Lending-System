@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 import json
 import models
 from database import get_db
+from tenant import get_tenant_db
 
 router = APIRouter(
     tags=["pwa"]
 )
 
 @router.get("/manifest.json")
-def get_manifest(db: Session = Depends(get_db)):
+def get_manifest(db: Session = Depends(get_tenant_db)):
     """
     Dynamically generate manifest.json based on organization configuration.
     """
@@ -27,14 +28,14 @@ def get_manifest(db: Session = Depends(get_db)):
             "theme_color": "#3b82f6",
             "icons": [
                 {
-                    "src": "/inphora-icon.png",
+                    "src": "/inphora-icon.jpg",
                     "sizes": "192x192",
-                    "type": "image/png"
+                    "type": "image/jpeg"
                 },
                 {
-                    "src": "/inphora-icon.png",
+                    "src": "/inphora-icon.jpg",
                     "sizes": "512x512",
-                    "type": "image/png"
+                    "type": "image/jpeg"
                 }
             ]
         }

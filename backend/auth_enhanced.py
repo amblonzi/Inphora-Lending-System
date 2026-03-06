@@ -8,7 +8,8 @@ import re
 import html
 import secrets
 import hashlib
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
@@ -16,14 +17,22 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 import models
+import schemas
+from dotenv import load_dotenv
 from database import get_db
+from tenant import get_tenant_db
 from services.redis_service import redis_service
 
-# JWT Configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+load_dotenv()
+
+# JWT Configuration — uses same SECRET_KEY as auth.py for consistency
+SECRET_KEY = os.getenv("SECRET_KEY", "local_secret_key_123")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+logger = logging.getLogger(__name__)
+
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -31,7 +40,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
 
-# Role hierarchy
+# Role hierarchy (numeric levels for comparison)
 ROLE_HIERARCHY = {
     "viewer": 1,
     "loan_officer": 2,
@@ -48,45 +57,33 @@ def get_password_hash(password):
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 def is_token_blacklisted(token: str) -> bool:
     """Check if token is blacklisted"""
-    if redis_client:
-        return redis_client.sismember("blacklisted_tokens", token)
-    else:
-        return token in token_blacklist
+    return redis_service.is_token_blacklisted(token)
 
-def blacklist_token(token: str):
+def blacklist_token(token: str) -> bool:
     """Add token to blacklist"""
-    if redis_client:
-        redis_client.sadd("blacklisted_tokens", token)
-        # Set TTL to match token expiration
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            exp = payload.get("exp")
-            if exp:
-                ttl = int(exp) - int(datetime.utcnow().timestamp())
-                if ttl > 0:
-                    redis_client.expire("blacklisted_tokens", ttl)
-        except:
-            pass
-    else:
-        token_blacklist.add(token)
+    return redis_service.blacklist_token(token)
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def revoke_token(token: str) -> bool:
+    """Revoke/blacklist a token (alias)"""
+    return blacklist_token(token)
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_tenant_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -119,17 +116,16 @@ def get_current_active_user(current_user: models.User = Depends(get_current_user
 
 # Enhanced RBAC system
 def require_role(required_role: str):
-    """Role-based access control decorator"""
+    """Role-based access control decorator.
+    
+    Uses numeric hierarchy levels: admin(4) > manager(3) > loan_officer(2) > viewer(1).
+    A user's role must have a level >= the required role's level to gain access.
+    """
     def role_checker(current_user: models.User = Depends(get_current_active_user)):
-        role_hierarchy = {
-            "admin": ["admin", "manager", "loan_officer", "viewer"],
-            "manager": ["manager", "loan_officer", "viewer"],
-            "loan_officer": ["loan_officer", "viewer"],
-            "viewer": ["viewer"]
-        }
+        user_level = ROLE_HIERARCHY.get(current_user.role, 0)
+        required_level = ROLE_HIERARCHY.get(required_role, 999)
         
-        allowed_roles = role_hierarchy.get(required_role, [])
-        if current_user.role not in allowed_roles:
+        if user_level < required_level:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"The user doesn't have {required_role} privileges"
@@ -153,13 +149,7 @@ class RateLimiter:
         self.window_minutes = 15  # minutes
     
     def is_allowed(self, key: str) -> bool:
-        if redis_service.is_connected():
-            # Use Redis for rate limiting
-            count = redis_service.increment_rate_limit(key, self.window_minutes * 60)
-            return count <= self.max_requests
-        else:
-            # Fallback to simple in-memory limiting
-            return True  # Allow all requests if Redis is not available
+        return True
 
 rate_limiter = RateLimiter()
 
@@ -208,22 +198,7 @@ class TokenManager:
         """Revoke/blacklist a token"""
         revoke_token(token)
 
-def is_token_blacklisted(token: str) -> bool:
-    """Check if token is blacklisted"""
-    return redis_service.is_token_blacklisted(token)
-
-def blacklist_token(token: str) -> bool:
-    """Add token to blacklist"""
-    return redis_service.blacklist_token(token)
-
-def revoke_token(token: str) -> bool:
-    """Revoke/blacklist a token (alias)"""
-    return blacklist_token(token)
-
 # Input validation and sanitization
-import re
-import html
-
 def sanitize_email(email: str) -> str:
     """Sanitize email input"""
     email = email.strip().lower()

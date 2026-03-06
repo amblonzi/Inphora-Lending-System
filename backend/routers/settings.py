@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import models, schemas, auth
 from database import get_db
+from tenant import get_tenant_db
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -11,7 +12,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 @router.get("/")
 def get_settings(
     category: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     query = db.query(models.SystemSettings)
@@ -22,7 +23,7 @@ def get_settings(
 @router.get("/{key}")
 def get_setting(
     key: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     setting = db.query(models.SystemSettings).filter(
@@ -38,7 +39,7 @@ def create_or_update_setting(
     setting_value: str,
     category: str,
     description: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     # Check if exists
@@ -68,7 +69,7 @@ def create_or_update_setting(
 @router.delete("/{key}")
 def delete_setting(
     key: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     setting = db.query(models.SystemSettings).filter(
@@ -86,7 +87,7 @@ def delete_setting(
 def change_own_password(
     current_password: str,
     new_password: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     # Verify current password

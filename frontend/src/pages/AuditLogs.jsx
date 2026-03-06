@@ -28,13 +28,13 @@ const AuditLogs = () => {
     };
 
     const filteredLogs = logs.filter(log => {
-        const matchesSearch = 
+        const matchesSearch =
             log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
             log.resource.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (log.user?.full_name || 'System').toLowerCase().includes(searchTerm.toLowerCase());
-        
+
         const matchesAction = filterAction === 'all' || log.action === filterAction;
-        
+
         return matchesSearch && matchesAction;
     });
 
@@ -82,7 +82,7 @@ const AuditLogs = () => {
                     </div>
                     <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">Activity Logs</h1>
                 </div>
-                <button 
+                <button
                     onClick={fetchLogs}
                     className="flex items-center gap-2 px-8 py-3.5 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl hover:bg-tytaj-500 hover:text-white transition-all shadow-xl font-black text-[10px] uppercase tracking-widest active:scale-95"
                 >
@@ -95,7 +95,7 @@ const AuditLogs = () => {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3 relative group">
                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-tytaj-500 transition-colors" size={20} />
-                    <input 
+                    <input
                         type="text"
                         placeholder="Filter by hash, operator, or resource..."
                         className={inputClass}
@@ -105,7 +105,7 @@ const AuditLogs = () => {
                 </div>
                 <div className="relative group">
                     <Filter className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-tytaj-500 pointer-events-none transition-colors" size={20} />
-                    <select 
+                    <select
                         className={`${inputClass} appearance-none cursor-pointer`}
                         value={filterAction}
                         onChange={(e) => setFilterAction(e.target.value)}
@@ -144,11 +144,11 @@ const AuditLogs = () => {
                                         </td>
                                     </tr>
                                 ))
-                            ) : filteredLogs.map((log) => (
-                                <motion.tr 
+                            ) : (Array.isArray(filteredLogs) ? filteredLogs : []).map((log) => (
+                                <motion.tr
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
-                                    key={log.id} 
+                                    key={log.id}
                                     className="hover:bg-tytaj-500/5 dark:hover:bg-white/5 transition-all group"
                                 >
                                     <td className="px-8 py-6 whitespace-nowrap">

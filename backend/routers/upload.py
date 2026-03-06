@@ -1,7 +1,9 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 import shutil
 import os
 from datetime import datetime
+from sqlalchemy.orm import Session
+from tenant import get_tenant_db
 import uuid
 
 router = APIRouter(tags=["upload"])
@@ -10,7 +12,7 @@ UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/upload")
-async def upload_file(file: UploadFile = File(...), type: str = Form("general")):
+async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_tenant_db), type: str = Form("general")):
     try:
         # Generate unique filename
         ext = os.path.splitext(file.filename)[1]

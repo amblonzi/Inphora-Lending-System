@@ -37,7 +37,7 @@ const Step1ClientProduct = ({ formData, updateFormData, clients, products }) => 
             onChange={(e) => updateFormData('client_id', e.target.value)}
           >
             <option value="" className="dark:bg-[#0a0a0f]">SELECT CLIENT...</option>
-            {clients.map(c => (
+            {(Array.isArray(clients) ? clients : []).map(c => (
               <option key={c.id} value={c.id} className="dark:bg-[#0a0a0f]">{c.first_name.toUpperCase()} {c.last_name.toUpperCase()} / {c.id_number}</option>
             ))}
           </select>
@@ -57,7 +57,7 @@ const Step1ClientProduct = ({ formData, updateFormData, clients, products }) => 
             onChange={(e) => updateFormData('product_id', e.target.value)}
           >
             <option value="" className="dark:bg-[#0a0a0f]">SELECT PRODUCT...</option>
-            {products.map(p => (
+            {(Array.isArray(products) ? products : []).map(p => (
               <option key={p.id} value={p.id} className="dark:bg-[#0a0a0f]">{p.name.toUpperCase()} [{p.interest_rate}% APR]</option>
             ))}
           </select>
@@ -185,7 +185,7 @@ const Step2Guarantors = ({ formData, addArrayItem, removeArrayItem }) => {
 
       {/* List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {formData.guarantors.map((g, idx) => (
+        {(Array.isArray(formData.guarantors) ? formData.guarantors : []).map((g, idx) => (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -272,7 +272,7 @@ const Step3Referees = ({ formData, addArrayItem, removeArrayItem }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          {formData.referees.map((r, idx) => (
+          {(Array.isArray(formData.referees) ? formData.referees : []).map((r, idx) => (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={idx} className="flex items-center justify-between p-6 bg-gray-50 dark:bg-white/5 rounded-[32px] border border-gray-100 dark:border-white/10 group shadow-lg">
               <div className="flex items-center gap-5">
                 <div className="w-12 h-12 bg-white dark:bg-[#0a0a0f] rounded-2xl flex items-center justify-center text-emerald-500 border border-emerald-500/20 shadow-inner">

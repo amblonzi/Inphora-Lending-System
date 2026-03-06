@@ -22,7 +22,7 @@ const Branches = () => {
         setLoading(true);
         try {
             const data = await api.branches.list();
-            setBranches(data);
+            setBranches(Array.isArray(data) ? data : []);
         } catch (error) {
             toast.error("Failed to sync branch list");
         } finally {
@@ -85,14 +85,14 @@ const Branches = () => {
                     </div>
                     <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">Branch Network</h1>
                 </div>
-                <AnimatedButton 
-                  onClick={openNewModal}
-                  className="px-8 py-3.5 rounded-2xl shadow-xl"
+                <AnimatedButton
+                    onClick={openNewModal}
+                    className="px-8 py-3.5 rounded-2xl shadow-xl"
                 >
-                  <div className="flex items-center gap-2">
-                    <Plus size={20} />
-                    <span>New Branch</span>
-                  </div>
+                    <div className="flex items-center gap-2">
+                        <Plus size={20} />
+                        <span>New Branch</span>
+                    </div>
                 </AnimatedButton>
             </div>
 
@@ -114,7 +114,7 @@ const Branches = () => {
             {/* Node Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <AnimatePresence>
-                    {branches.map((branch, index) => (
+                    {(Array.isArray(branches) ? branches : []).map((branch, index) => (
                         <motion.div
                             key={branch.id}
                             initial={{ opacity: 0, y: 20 }}
@@ -139,7 +139,7 @@ const Branches = () => {
                                 <div className="space-y-4 mb-8">
                                     <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 font-bold bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                                         <div className="p-2 bg-white dark:bg-white/5 rounded-xl text-tytaj-500">
-                                          <MapPin size={16} />
+                                            <MapPin size={16} />
                                         </div>
                                         <span className="uppercase tracking-tight">{branch.location || 'Location Undefined'}</span>
                                     </div>
@@ -185,7 +185,7 @@ const Branches = () => {
 
             {loading && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {[1,2,3].map(i => (
+                    {[1, 2, 3].map(i => (
                         <div key={i} className="h-64 bg-gray-50 dark:bg-white/5 rounded-[40px] animate-pulse border-2 border-dashed border-gray-100 dark:border-white/5"></div>
                     ))}
                 </div>

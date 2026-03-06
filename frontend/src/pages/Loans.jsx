@@ -35,16 +35,16 @@ const Loans = () => {
     try {
       if (activeTab === 'products') {
         const response = await api.loanProducts.list();
-        setLoanProducts(response);
+        setLoanProducts(Array.isArray(response) ? response : []);
       } else {
         const [loansRes, clientsRes, productsRes] = await Promise.all([
           api.loans.list(),
           api.clients.list(),
           api.loanProducts.list(),
         ]);
-        setLoans(loansRes);
-        setClients(clientsRes);
-        setLoanProducts(productsRes);
+        setLoans(Array.isArray(loansRes) ? loansRes : []);
+        setClients(Array.isArray(clientsRes) ? clientsRes : []);
+        setLoanProducts(Array.isArray(productsRes) ? productsRes : []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -189,7 +189,7 @@ const Loans = () => {
                 <div className="space-y-1">
                   <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Amount Range</p>
                   <p className="font-black text-gray-900 dark:text-white text-sm">
-                    K{(product.min_amount / 1000).toFixed(0)}k - {(product.max_amount / 1000).toFixed(0)}k
+                    K{((product.min_amount ?? 0) / 1000).toFixed(0)}k - {((product.max_amount ?? 0) / 1000).toFixed(0)}k
                   </p>
                 </div>
                 <div className="space-y-1 text-right">
@@ -254,10 +254,10 @@ const Loans = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                {loans.length === 0 ? (
+                {(!Array.isArray(loans) || loans.length === 0) ? (
                   <tr><td colSpan="6" className="p-20 text-center text-gray-400 dark:text-gray-600 font-bold italic tracking-tight">No active loans found.</td></tr>
                 ) : (
-                  loans.map((loan) => (
+                  (Array.isArray(loans) ? loans : []).map((loan) => (
                     <tr key={loan.id} className="hover:bg-gray-50/50 dark:hover:bg-white/5 transition-all group">
                       <td className="px-8 py-5 text-gray-500 dark:text-gray-400 text-xs font-black tracking-widest">#{loan.id.toString().padStart(4, '0')}</td>
                       <td className="px-8 py-5">
@@ -270,7 +270,7 @@ const Loans = () => {
                       </td>
                       <td className="px-8 py-5 text-right text-gray-900 dark:text-white font-black text-lg tracking-tighter">
                         <span className="text-xs text-gray-400 mr-1 font-medium tracking-normal">K</span>
-                        {loan.amount.toLocaleString()}
+                        {loan.amount?.toLocaleString() ?? '0'}
                       </td>
                       <td className="px-8 py-5 text-center">
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest border

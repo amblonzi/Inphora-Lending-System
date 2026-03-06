@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useOrganization } from '../context/OrganizationContext';
 import { LayoutDashboard, Users, User, DollarSign, PieChart, LogOut, Settings, Menu, X, Bell, Building2, UsersRound, TrendingUp, Smartphone, History, Shield, Moon, Sun, Terminal, Package } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '../lib/utils';
 import GlassCard from './ui/GlassCard';
 import NotificationDropdown from './NotificationDropdown';
@@ -20,15 +20,6 @@ const Layout = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Fetch notifications
-  React.useEffect(() => {
-    fetchNotifications();
-
-    // Poll every minute
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
   const fetchNotifications = async () => {
     try {
       const data = await api.notifications.list({ limit: 10 });
@@ -41,6 +32,15 @@ const Layout = () => {
       setUnreadCount(0);
     }
   };
+
+  // Fetch notifications
+  React.useEffect(() => {
+    fetchNotifications();
+
+    // Poll every minute
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const markAsRead = async (id) => {
     try {
@@ -74,14 +74,14 @@ const Layout = () => {
     { icon: Building2, label: 'Branches', path: '/branches' },
     { icon: UsersRound, label: 'Customer Groups', path: '/customer-groups' },
     { icon: TrendingUp, label: 'Reports', path: '/reports' },
-    { icon: Smartphone, label: 'M-Pesa', path: '/mpesa' },
+    { icon: Smartphone, label: 'M-Pesa', path: '/mpesa', adminOnly: true },
     { icon: History, label: 'Audit Logs', path: '/audit-logs', adminOnly: true },
     { icon: Shield, label: 'Users', path: '/users', adminOnly: true },
     { icon: Package, label: 'Loan Products', path: '/loan-products' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
-  const SidebarContent = () => (
+  const sidebarContent = (
     <div className="flex flex-col h-full">
       <div className="p-8 flex items-center gap-4">
         {orgConfig?.logo_url ? (
@@ -104,7 +104,7 @@ const Layout = () => {
       </div>
 
       <nav className="flex-1 mt-4 px-4 space-y-1.5 overflow-y-auto custom-scrollbar">
-        {menuItems.filter(item => !item.adminOnly || user?.role === 'admin').map((item) => {
+        {(Array.isArray(menuItems) ? menuItems : []).filter(item => !item.adminOnly || user?.role === 'admin').map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
           return (
@@ -169,7 +169,7 @@ const Layout = () => {
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-72 flex-col border-r border-white/40 dark:border-white/5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl z-20">
-        <SidebarContent />
+        {sidebarContent}
       </aside>
 
       {/* Mobile Menu Overlay */}
@@ -190,7 +190,7 @@ const Layout = () => {
               transition={{ type: "spring", stiffness: 300, damping: 35 }}
               className="fixed inset-y-0 left-0 w-80 bg-white/90 dark:bg-slate-900/95 backdrop-blur-2xl shadow-2xl z-40 md:hidden border-r border-white/20 dark:border-white/5"
             >
-              <SidebarContent />
+              {sidebarContent}
             </motion.aside>
           </>
         )}
@@ -261,12 +261,12 @@ const Layout = () => {
             <div className="flex items-center gap-4 pl-2 h-full group cursor-pointer">
               <div className="flex flex-col items-end hidden sm:flex">
                 <span className="text-xs font-black text-gray-900 dark:text-white tracking-tight leading-none mb-1">
-                  {user?.email?.split('@')[0].toUpperCase()}
+                  {user?.email?.split('@')[0]?.toUpperCase() || 'USER'}
                 </span>
-                <span className="text-[9px] font-black text-tytaj-600 dark:text-tytaj-400 uppercase tracking-widest opacity-70">{user?.role}</span>
+                <span className="text-[9px] font-black text-tytaj-600 dark:text-tytaj-400 uppercase tracking-widest opacity-70">{user?.role || 'Guest'}</span>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-tytaj-500 to-tytaj-800 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-tytaj-500/20 group-hover:scale-105 transition-transform border border-white/20">
-                {user?.email?.[0].toUpperCase()}
+                {user?.email?.[0]?.toUpperCase() || 'U'}
               </div>
             </div>
           </div>

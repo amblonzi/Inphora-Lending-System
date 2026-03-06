@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import models
+import json
 from database import get_db
+from tenant import get_tenant_db
 from auth import get_current_active_user
 from datetime import datetime
 
@@ -21,28 +23,31 @@ class ErrorLogEntry(BaseModel):
 @router.post("/error")
 async def log_frontend_error(
     error_data: ErrorLogEntry,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
     """
     Log frontend errors from the client application.
     """
     try:
-        # Store error in database or external logging service
-        # For now, we'll just print it and could store in a logs table
+        # Store error in database logs table
+        log_entry = models.ActivityLog(
+            user_id=current_user.id,
+            action="frontend_error",
+            resource=error_data.namespace,
+            resource_id=error_data.url[:50],
+            details=json.dumps({
+                "message": error_data.message,
+                "error": error_data.error,
+                "userAgent": error_data.userAgent,
+                "timestamp": error_data.timestamp
+            }),
+            ip_address=None # Could be extracted from request
+        )
+        db.add(log_entry)
+        db.commit()
         
-        print(f"FRONTEND ERROR [{error_data.namespace}]: {error_data.message}")
-        if error_data.error:
-            print(f"Error details: {error_data.error}")
-        print(f"URL: {error_data.url}")
-        print(f"User Agent: {error_data.userAgent}")
-        print(f"User ID: {current_user.id}")
-        print(f"Timestamp: {error_data.timestamp}")
-        print("-" * 50)
-        
-        # TODO: Store in database logs table or send to external service like Sentry
-        
-        return {"status": "logged", "message": "Error logged successfully"}
+        return {"success": True, "message": "Error logged successfully"}
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to log error: {str(e)}")

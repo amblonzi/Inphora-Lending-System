@@ -3,13 +3,15 @@ from sqlalchemy.orm import Session
 from typing import List
 import models, schemas, auth
 from database import get_db
+from tenant import get_tenant_db
+from pagination import paginate
 
 router = APIRouter(prefix="/loan-products", tags=["loan_products"])
 
 @router.post("/", response_model=schemas.LoanProduct)
 def create_loan_product(
     product: schemas.LoanProductCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     db_product = models.LoanProduct(**product.dict())
@@ -18,17 +20,20 @@ def create_loan_product(
     db.refresh(db_product)
     return db_product
 
-@router.get("/", response_model=List[schemas.LoanProduct])
+@router.get("/", response_model=schemas.PaginatedResponse[schemas.LoanProduct])
 def list_loan_products(
-    db: Session = Depends(get_db),
+    page: int = 1,
+    size: int = 50,
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    return db.query(models.LoanProduct).all()
+    query = db.query(models.LoanProduct)
+    return paginate(query, page, size, schemas.LoanProduct)
 
 @router.get("/{product_id}", response_model=schemas.LoanProduct)
 def get_loan_product(
     product_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     product = db.query(models.LoanProduct).filter(models.LoanProduct.id == product_id).first()
@@ -40,7 +45,7 @@ def get_loan_product(
 def update_loan_product(
     product_id: int,
     product_update: schemas.LoanProductCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     db_product = db.query(models.LoanProduct).filter(models.LoanProduct.id == product_id).first()
@@ -57,7 +62,7 @@ def update_loan_product(
 @router.delete("/{product_id}")
 def delete_loan_product(
     product_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     product = db.query(models.LoanProduct).filter(models.LoanProduct.id == product_id).first()

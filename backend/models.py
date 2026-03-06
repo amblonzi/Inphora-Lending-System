@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Date, Text
 from sqlalchemy.orm import relationship
 from database import Base
-from datetime import datetime
+from datetime import datetime, timezone
 
 class User(Base):
     __tablename__ = "users"
@@ -13,7 +13,7 @@ class User(Base):
     role = Column(String(50), default="user") # admin, loan_officer
     permissions = Column(Text, nullable=True) # Comma-separated or JSON
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login = Column(DateTime, nullable=True)
     
     # 2FA Fields
@@ -50,8 +50,8 @@ class Client(Base):
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     status = Column(String(50), default="active")  # active, inactive, suspended
     
-    created_at = Column(DateTime, default=datetime.utcnow)
-    joined_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    joined_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     next_of_kin = relationship("NextOfKin", back_populates="client")
     
@@ -73,7 +73,7 @@ class ClientKYCDocument(Base):
     client_id = Column(Integer, ForeignKey("clients.id"))
     document_type = Column(String(100), nullable=True) # e.g., "ID Front", "ID Back", "Passport"
     document_url = Column(String(500))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     client = relationship("Client", back_populates="kyc_documents")
 
@@ -161,7 +161,7 @@ class LoanApproval(Base):
     level = Column(Integer) # 1, 2, 3...
     status = Column(String(50)) # approved, rejected
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     loan = relationship("Loan", back_populates="approvals")
     user = relationship("User")
@@ -191,7 +191,7 @@ class MpesaIncomingTransaction(Base):
     bill_ref = Column(String(100))
     raw_callback_data = Column(Text) # JSON string
     status = Column(String(20), default="unmatched") # unmatched, matched, invalid
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Link to client/loan if matched
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=True)
@@ -232,7 +232,7 @@ class SystemSettings(Base):
     category = Column(String(50))  # payment, sms, general
     description = Column(Text, nullable=True)
     is_encrypted = Column(Boolean, default=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 class RegistrationApplication(Base):
     __tablename__ = "registration_applications"
@@ -252,7 +252,7 @@ class RegistrationApplication(Base):
     
     # Status tracking
     status = Column(String(50), default="pending")  # pending, paid, approved, rejected
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     processed_at = Column(DateTime, nullable=True)
     processed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     
@@ -285,7 +285,7 @@ class DisbursementTransaction(Base):
     # Status tracking
     status = Column(String(20), default="pending")  # pending, processing, completed, failed
     initiated_by = Column(Integer, ForeignKey("users.id"))
-    initiated_at = Column(DateTime, default=datetime.utcnow)
+    initiated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime, nullable=True)
     
     # Response data
@@ -386,7 +386,7 @@ class SavingsAccount(Base):
     client_id = Column(Integer, ForeignKey("clients.id"))
     account_type = Column(String(50), default="general") # general, lgf
     balance = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     client = relationship("Client", back_populates="savings_accounts")
     transactions = relationship("SavingsTransaction", back_populates="account")
@@ -398,7 +398,7 @@ class SavingsTransaction(Base):
     amount = Column(Float)
     transaction_type = Column(String(20)) # deposit, withdrawal, interest
     description = Column(String(255))
-    date = Column(DateTime, default=datetime.utcnow)
+    date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     performed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     account = relationship("SavingsAccount", back_populates="transactions")
@@ -412,7 +412,7 @@ class ActivityLog(Base):
     resource_id = Column(String(50), nullable=True)
     details = Column(Text, nullable=True) # JSON details
     ip_address = Column(String(50), nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     user = relationship("User")
 
@@ -443,8 +443,8 @@ class OrganizationConfig(Base):
     timezone = Column(String(50), default="Africa/Nairobi")
     
     # Meta
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # PWA Settings
     pwa_short_name = Column(String(30), nullable=True)  # Max 30 chars for homescreen
@@ -466,6 +466,6 @@ class Notification(Base):
     message = Column(Text)
     type = Column(String(50), default="info") # info, success, warning, error
     is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")

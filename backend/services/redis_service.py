@@ -1,6 +1,7 @@
 """
 Redis Service for Inphora Lending System
 Handles session management, token blacklisting, and caching
+With in-memory fallbacks when Redis is unavailable
 """
 
 import os
@@ -14,11 +15,14 @@ from redis.exceptions import ConnectionError, RedisError
 logger = logging.getLogger(__name__)
 
 class RedisService:
-    """Redis service for session management and caching"""
+    """Redis service for session management and caching with in-memory fallbacks"""
     
     def __init__(self):
         self.redis_client = None
         self.connected = False
+        # In-memory fallbacks for when Redis is unavailable
+        self._memory_blacklist = set()
+        self._memory_rate_limits = {}
         self._connect()
     
     def _connect(self) -> bool:
@@ -43,7 +47,7 @@ class RedisService:
             return True
             
         except (ConnectionError, RedisError) as e:
-            logger.warning(f"Failed to connect to Redis: {e}")
+            logger.warning(f"Failed to connect to Redis: {e}. Using in-memory fallbacks.")
             self.connected = False
             self.redis_client = None
             return False
@@ -105,51 +109,54 @@ class RedisService:
             return False
     
     def blacklist_token(self, token: str, ttl: int = None) -> bool:
-        """Add token to blacklist"""
-        if not self.is_connected():
-            return False
+        """Add token to blacklist (with in-memory fallback)"""
+        if self.is_connected():
+            try:
+                ttl = ttl or int(os.getenv('TOKEN_BLACKLIST_TTL', 86400))
+                key = f"blacklist:{token}"
+                
+                self.redis_client.setex(
+                    key,
+                    ttl,
+                    datetime.utcnow().isoformat()
+                )
+                return True
+                
+            except RedisError as e:
+                logger.error(f"Failed to blacklist token in Redis: {e}")
         
-        try:
-            ttl = ttl or int(os.getenv('TOKEN_BLACKLIST_TTL', 86400))
-            key = f"blacklist:{token}"
-            
-            self.redis_client.setex(
-                key,
-                ttl,
-                datetime.utcnow().isoformat()
-            )
-            return True
-            
-        except RedisError as e:
-            logger.error(f"Failed to blacklist token: {e}")
-            return False
+        # In-memory fallback
+        self._memory_blacklist.add(token)
+        return True
     
     def is_token_blacklisted(self, token: str) -> bool:
-        """Check if token is blacklisted"""
-        if not self.is_connected():
-            return False
+        """Check if token is blacklisted (with in-memory fallback)"""
+        if self.is_connected():
+            try:
+                key = f"blacklist:{token}"
+                return bool(self.redis_client.exists(key))
+                
+            except RedisError as e:
+                logger.error(f"Failed to check token blacklist in Redis: {e}")
         
-        try:
-            key = f"blacklist:{token}"
-            return self.redis_client.exists(key)
-            
-        except RedisError as e:
-            logger.error(f"Failed to check token blacklist: {e}")
-            return False
+        # In-memory fallback
+        return token in self._memory_blacklist
     
     def remove_from_blacklist(self, token: str) -> bool:
         """Remove token from blacklist"""
-        if not self.is_connected():
-            return False
+        if self.is_connected():
+            try:
+                key = f"blacklist:{token}"
+                self.redis_client.delete(key)
+                return True
+                
+            except RedisError as e:
+                logger.error(f"Failed to remove from blacklist: {e}")
+                return False
         
-        try:
-            key = f"blacklist:{token}"
-            self.redis_client.delete(key)
-            return True
-            
-        except RedisError as e:
-            logger.error(f"Failed to remove from blacklist: {e}")
-            return False
+        # In-memory fallback
+        self._memory_blacklist.discard(token)
+        return True
     
     def set_cache(self, key: str, value: Any, ttl: int = None) -> bool:
         """Set cache value"""
@@ -209,37 +216,50 @@ class RedisService:
             return False
     
     def increment_rate_limit(self, identifier: str, window: int = 60) -> int:
-        """Increment rate limit counter"""
-        if not self.is_connected():
-            return 0
+        """Increment rate limit counter (with in-memory fallback)"""
+        if self.is_connected():
+            try:
+                key = f"rate_limit:{identifier}"
+                count = self.redis_client.incr(key)
+                
+                if count == 1:
+                    # Set expiry on first increment
+                    self.redis_client.expire(key, window)
+                
+                return count
+                
+            except RedisError as e:
+                logger.error(f"Failed to increment rate limit: {e}")
         
-        try:
-            key = f"rate_limit:{identifier}"
-            count = self.redis_client.incr(key)
-            
-            if count == 1:
-                # Set expiry on first increment
-                self.redis_client.expire(key, window)
-            
-            return count
-            
-        except RedisError as e:
-            logger.error(f"Failed to increment rate limit: {e}")
-            return 0
+        # In-memory fallback
+        import time
+        now = time.time()
+        if identifier not in self._memory_rate_limits:
+            self._memory_rate_limits[identifier] = {"count": 0, "start": now, "window": window}
+        
+        entry = self._memory_rate_limits[identifier]
+        if now - entry["start"] > entry["window"]:
+            # Window expired, reset
+            entry["count"] = 0
+            entry["start"] = now
+        
+        entry["count"] += 1
+        return entry["count"]
     
     def get_rate_limit(self, identifier: str) -> int:
         """Get current rate limit count"""
-        if not self.is_connected():
-            return 0
+        if self.is_connected():
+            try:
+                key = f"rate_limit:{identifier}"
+                value = self.redis_client.get(key)
+                return int(value) if value else 0
+                
+            except RedisError as e:
+                logger.error(f"Failed to get rate limit: {e}")
         
-        try:
-            key = f"rate_limit:{identifier}"
-            value = self.redis_client.get(key)
-            return int(value) if value else 0
-            
-        except RedisError as e:
-            logger.error(f"Failed to get rate limit: {e}")
-            return 0
+        # In-memory fallback
+        entry = self._memory_rate_limits.get(identifier)
+        return entry["count"] if entry else 0
     
     def clear_all_sessions(self) -> bool:
         """Clear all session data (for maintenance)"""
@@ -282,8 +302,8 @@ class RedisService:
         """Perform health check"""
         if not self.is_connected():
             return {
-                "status": "unhealthy",
-                "message": "Redis not connected"
+                "status": "degraded",
+                "message": "Redis not connected, using in-memory fallbacks"
             }
         
         try:
@@ -316,3 +336,4 @@ redis_service = RedisService()
 
 # Export for use in other modules
 __all__ = ['RedisService', 'redis_service']
+

@@ -370,7 +370,7 @@ const LoanProducts = () => {
                     </motion.div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {products.map(product => (
+                        {(Array.isArray(products) ? products : []).map(product => (
                             <GlassCard key={product.id} className="p-8 border-white/10 hover:border-tytaj-500/30 transition-colors group relative overflow-hidden">
                                 <div className="flex justify-between items-start mb-6 relative z-10">
                                     <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl text-gray-900 dark:text-white border border-gray-100 dark:border-white/10">

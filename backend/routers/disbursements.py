@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Optional
 import models, auth, schemas
 from database import get_db
+from tenant import get_tenant_db
+from pagination import paginate
 from services.mpesa_service import MpesaService
 
 def get_mpesa_service(db: Session):
@@ -33,7 +35,7 @@ def can_disburse(user: models.User):
 def disburse_via_mpesa(
     loan_id: int,
     phone: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Disburse loan via M-Pesa (simulated for now)"""
@@ -120,7 +122,7 @@ def disburse_via_mpesa(
 def disburse_via_bank(
     loan_id: int,
     bank_reference: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Record bank transfer disbursement"""
@@ -178,7 +180,7 @@ from sqlalchemy import text
 def disburse_manual(
     loan_id: int,
     notes: str,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Record manual cash disbursement"""
@@ -223,7 +225,7 @@ def disburse_manual(
 def get_disbursement_history(
     loan_id: Optional[int] = None,
     status: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Get disbursement transaction history"""
@@ -239,7 +241,7 @@ def get_disbursement_history(
 @router.get("/{transaction_id}")
 def get_disbursement(
     transaction_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Get disbursement transaction details"""

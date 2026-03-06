@@ -8,14 +8,14 @@
   "theme_color": "#3b82f6",
   "icons": [
     {
-      "src": "/inphora-icon.png",
+      "src": "/inphora-icon.jpg",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/jpeg"
     },
     {
-      "src": "/inphora-icon.png",
+      "src": "/inphora-icon.jpg",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/jpeg"
     }
   ]
 }

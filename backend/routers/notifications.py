@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 import models, schemas
 from database import get_db
+from tenant import get_tenant_db
+from pagination import paginate
 from auth import get_current_user
 
 router = APIRouter(
@@ -10,28 +12,26 @@ router = APIRouter(
     tags=["notifications"]
 )
 
-@router.get("/", response_model=List[schemas.Notification])
+@router.get("/", response_model=schemas.PaginatedResponse[schemas.Notification])
 def get_user_notifications(
-    skip: int = 0,
-    limit: int = 50,
-    db: Session = Depends(get_db),
+    page: int = 1,
+    size: int = 50,
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(get_current_user)
 ):
     """
     Get notifications for the current logged-in user.
     """
-    notifications = db.query(models.Notification)\
+    query = db.query(models.Notification)\
         .filter(models.Notification.user_id == current_user.id)\
-        .order_by(models.Notification.created_at.desc())\
-        .offset(skip)\
-        .limit(limit)\
-        .all()
-    return notifications
+        .order_by(models.Notification.created_at.desc())
+    
+    return paginate(query, page, size, schemas.Notification)
 
 @router.put("/{notification_id}/read", response_model=schemas.Notification)
 def mark_notification_as_read(
     notification_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(get_current_user)
 ):
     """
@@ -59,7 +59,7 @@ def mark_notification_as_read(
 
 @router.put("/read-all", response_model=dict)
 def mark_all_as_read(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(get_current_user)
 ):
     """

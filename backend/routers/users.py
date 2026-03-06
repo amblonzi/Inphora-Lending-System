@@ -3,23 +3,25 @@ from sqlalchemy.orm import Session
 from typing import List
 import models, schemas, auth
 from database import get_db
+from tenant import get_tenant_db
+from pagination import paginate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-@router.get("/", response_model=List[schemas.Userimpl])
-def read_users(
-    skip: int = 0, 
-    limit: int = 100, 
-    db: Session = Depends(get_db),
+@router.get("/", response_model=schemas.PaginatedResponse[schemas.Userimpl])
+def list_users(
+    page: int = 1, 
+    size: int = 50, 
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
-    users = db.query(models.User).offset(skip).limit(limit).all()
-    return users
+    query = db.query(models.User)
+    return paginate(query, page, size, schemas.Userimpl)
 
 @router.post("/", response_model=schemas.Userimpl)
 def create_user(
     user: schemas.UserCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
@@ -49,7 +51,7 @@ async def read_users_me(current_user: models.User = Depends(auth.get_current_act
 def update_user(
     user_id: int,
     user_update: schemas.UserUpdate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     # Only admin can update others. Users can update themselves (but maybe limited fields)
@@ -77,11 +79,12 @@ def update_user(
     db.refresh(db_user)
     return db_user
 
-@router.get("/activity-logs", response_model=List[schemas.ActivityLog])
+@router.get("/activity-logs", response_model=schemas.PaginatedResponse[schemas.ActivityLog])
 def get_activity_logs(
-    limit: int = 100,
-    db: Session = Depends(get_db),
+    page: int = 1,
+    size: int = 50,
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.require_admin)
 ):
-    logs = db.query(models.ActivityLog).order_by(models.ActivityLog.timestamp.desc()).limit(limit).all()
-    return logs
+    query = db.query(models.ActivityLog).order_by(models.ActivityLog.timestamp.desc())
+    return paginate(query, page, size, schemas.ActivityLog)

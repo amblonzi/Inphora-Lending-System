@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 import models
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 def log_activity(db: Session, user_id: int, action: str, resource: str, resource_id: str = None, details: dict = None, ip_address: str = None):
@@ -15,7 +15,7 @@ def log_activity(db: Session, user_id: int, action: str, resource: str, resource
             resource_id=str(resource_id) if resource_id else None,
             details=json.dumps(details) if details else None,
             ip_address=ip_address,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
         db.add(log)
         db.commit()
@@ -33,7 +33,7 @@ def create_notification(db: Session, user_id: int, title: str, message: str, typ
             title=title,
             message=message,
             type=type,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             is_read=False
         )
         db.add(notification)

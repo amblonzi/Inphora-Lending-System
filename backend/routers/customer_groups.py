@@ -3,24 +3,26 @@ from sqlalchemy.orm import Session
 from typing import List
 import models, schemas, auth
 from database import get_db
+from tenant import get_tenant_db
+from pagination import paginate
 
 router = APIRouter(tags=["customer_groups"])
 
-@router.get("/customer-groups/", response_model=List[schemas.CustomerGroup])
+@router.get("/customer-groups/", response_model=schemas.PaginatedResponse[schemas.CustomerGroup])
 def list_customer_groups(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db),
+    page: int = 1,
+    size: int = 50,
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """List all customer groups"""
-    groups = db.query(models.CustomerGroup).offset(skip).limit(limit).all()
-    return groups
+    query = db.query(models.CustomerGroup)
+    return paginate(query, page, size, schemas.CustomerGroup)
 
 @router.post("/customer-groups/", response_model=schemas.CustomerGroup)
 def create_customer_group(
     group: schemas.CustomerGroupCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Create a new customer group"""
@@ -38,7 +40,7 @@ def create_customer_group(
 @router.get("/customer-groups/{group_id}", response_model=schemas.CustomerGroup)
 def get_customer_group(
     group_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Get a specific customer group"""
@@ -51,7 +53,7 @@ def get_customer_group(
 def update_customer_group(
     group_id: int,
     group: schemas.CustomerGroupCreate,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Update a customer group"""
@@ -75,7 +77,7 @@ def update_customer_group(
 @router.delete("/customer-groups/{group_id}")
 def delete_customer_group(
     group_id: int,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Delete a customer group"""
