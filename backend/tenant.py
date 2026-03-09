@@ -56,27 +56,9 @@ class TenantMiddleware(BaseHTTPMiddleware):
         return response
 
 def get_tenant_db(request: Request):
-    tenant = getattr(request.state, "tenant", None)
-    
-    if not tenant:
-        # Fallback to default DB for local/single-tenant
-        db = SessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-        return
-
-    db_url = tenant_manager.get_db_url(tenant)
-    if not db_url:
-        # If tenant provided but not found in map, error for security
-        raise HTTPException(status_code=400, detail=f"Invalid tenant: {tenant}")
-
-    # Get cached engine for this tenant
-    engine = get_engine(db_url)
-    TenantSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
-    db = TenantSessionLocal()
+    # In the multi-container architecture, each container has exactly one database
+    # provided by its DATABASE_URL environment variable.
+    db = SessionLocal()
     try:
         yield db
     finally:

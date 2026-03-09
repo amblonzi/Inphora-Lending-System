@@ -60,16 +60,11 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Security middleware
-if os.getenv("ENVIRONMENT") == "production":
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=["inphora.net", "*.inphora.net"]
-    )
+# Security middleware removed (handled by Nginx reverse proxy)
 
 # Custom middleware for authentication and rate limiting
 from tenant import TenantMiddleware
-app.add_middleware(TenantMiddleware)
+# app.add_middleware(TenantMiddleware) # Removed because each container is single-tenant now
 
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
