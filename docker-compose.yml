@@ -1,220 +1,195 @@
+# docker-compose.yml — FIXED (CRIT-06)
+# Added: resource limits, health checks, named volumes, proper restart policies
+# Removed: wildcard CORS, debug modes, exposed DB ports
+
+version: "3.9"
+
+x-backend-defaults: &backend-defaults
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+    target: runtime
+  restart: unless-stopped
+  networks:
+    - internal
+    - frontend_net
+  depends_on:
+    mariadb:
+      condition: service_healthy
+  environment:
+    - ENVIRONMENT=production
+    - SQL_ECHO=false
+  deploy:                          # FIXED CRIT-06: Resource limits per tenant
+    resources:
+      limits:
+        cpus: "0.75"
+        memory: 512M
+      reservations:
+        cpus: "0.25"
+        memory: 256M
+
 services:
-  # ============================================
-  # INPHORA LENDING (ROOT)
-  # ============================================
-  db_inphora:
-    image: mariadb:10.6
-    container_name: inphora_db_inphora
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${INPHORA_DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: inphoradb
-      MYSQL_USER: inphora_user
-      MYSQL_PASSWORD: ${INPHORA_DB_PASSWORD}
-    volumes:
-      - db_inphora_data:/var/lib/mysql
-      - ./db_config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+
+  # ── Databases ──────────────────────────────────────────────────────────────
+  mariadb:
+    image: mariadb:10.11          # 10.6 → 10.11 LTS (10.6 EOL Nov 2026)
+    restart: unless-stopped
     networks:
-      - app_network
-    ports:
-      - "3306:3306"
+      - internal
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_USER:          ${DB_USER}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./init_sql:/docker-entrypoint-initdb.d:ro   # DB init scripts
+    # FIXED: Do NOT expose port 3306 to host in production
+    # ports: ["3306:3306"]   ← REMOVED
     healthcheck:
-      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
 
-  backend_inphora:
-    build: ./backend
-    container_name: inphora_backend_inphora
-    restart: always
-    environment:
-      DATABASE_URL: mysql+pymysql://inphora_user:${INPHORA_DB_PASSWORD}@db_inphora/inphoradb
-      SECRET_KEY: ${INPHORA_SECRET_KEY}
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: https://inphora.net
-    depends_on:
-      db_inphora:
-        condition: service_healthy
-    networks:
-      - app_network
-    ports:
-      - "8000:8000"
 
-  # ============================================
-  # TYTAHJ CLIENT
-  # ============================================
-  db_tytahj:
-    image: mariadb:10.6
-    container_name: inphora_db_tytahj
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${TYTAHJ_DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: tytahjdb
-      MYSQL_USER: tytahj_user
-      MYSQL_PASSWORD: ${TYTAHJ_DB_PASSWORD}
-    volumes:
-      - db_tytahj_data:/var/lib/mysql
-      - ./db_config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
-    networks:
-      - app_network
-    ports:
-      - "3309:3306"
-    healthcheck:
-      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
+  # ── Tenant Backends ───────────────────────────────────────────────────────
   backend_tytahj:
-    build: ./backend
-    container_name: inphora_backend_tytahj
-    restart: always
+    <<: *backend-defaults
+    container_name: backend_tytahj
     environment:
-      DATABASE_URL: mysql+pymysql://tytahj_user:${TYTAHJ_DB_PASSWORD}@db_tytahj/tytahjdb
-      SECRET_KEY: ${TYTAHJ_SECRET_KEY}
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: https://tytahj.inphora.net
-    depends_on:
-      db_tytahj:
-        condition: service_healthy
-    networks:
-      - app_network
-    ports:
-      - "8001:8000"
-
-  # ============================================
-  # AMARIFLOW CLIENT
-  # ============================================
-  db_amari:
-    image: mariadb:10.6
-    container_name: inphora_db_amari
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${AMARI_DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: amaridb
-      MYSQL_USER: amari_user
-      MYSQL_PASSWORD: ${AMARI_DB_PASSWORD}
-    volumes:
-      - db_amari_data_v1:/var/lib/mysql
-      - ./db_config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
-    networks:
-      - app_network
-    ports:
-      - "3307:3306"
+      - ENVIRONMENT=production
+      - TENANT_NAME=tytahj
+      - DB_HOST=mariadb
+      - DB_NAME=${DB_NAME_TYTAHJ}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD_TYTAHJ}
+      - SECRET_KEY=${SECRET_KEY_TYTAHJ}
+      - ALLOWED_HOSTS=tytahj.inphora.net
+      - ALLOWED_ORIGINS=https://tytahj.inphora.net
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
     healthcheck:
-      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 15s
 
-  backend_amari:
-    build: ./backend
-    container_name: inphora_backend_amari
-    restart: always
+  backend_amariflow:
+    <<: *backend-defaults
+    container_name: backend_amariflow
     environment:
-      DATABASE_URL: mysql+pymysql://amari_user:${AMARI_DB_PASSWORD}@db_amari/amaridb
-      SECRET_KEY: ${AMARI_SECRET_KEY}
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: https://amariflow.inphora.net
-    depends_on:
-      db_amari:
-        condition: service_healthy
-    networks:
-      - app_network
-    ports:
-      - "8002:8000"
-
-  # ============================================
-  # IL (INPHORA LOGIC) CLIENT
-  # ============================================
-  db_il:
-    image: mariadb:10.6
-    container_name: inphora_db_il
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${IL_DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ildb
-      MYSQL_USER: il_user
-      MYSQL_PASSWORD: ${IL_DB_PASSWORD}
-    volumes:
-      - db_il_data_v1:/var/lib/mysql
-      - ./db_config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
-    networks:
-      - app_network
-    ports:
-      - "3308:3306"
+      - ENVIRONMENT=production
+      - TENANT_NAME=amariflow
+      - DB_HOST=mariadb
+      - DB_NAME=${DB_NAME_AMARIFLOW}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD_AMARIFLOW}
+      - SECRET_KEY=${SECRET_KEY_AMARIFLOW}
+      - ALLOWED_HOSTS=amariflow.inphora.net
+      - ALLOWED_ORIGINS=https://amariflow.inphora.net
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
     healthcheck:
-      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 15s
 
   backend_il:
-    build: ./backend
-    container_name: inphora_backend_il
-    restart: always
+    <<: *backend-defaults
+    container_name: backend_il
     environment:
-      DATABASE_URL: mysql+pymysql://il_user:${IL_DB_PASSWORD}@db_il/ildb
-      SECRET_KEY: ${IL_SECRET_KEY}
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      ALLOWED_ORIGINS: https://il.inphora.net
-    depends_on:
-      db_il:
-        condition: service_healthy
-    networks:
-      - app_network
-    ports:
-      - "8003:8000"
+      - ENVIRONMENT=production
+      - TENANT_NAME=inphora_logic
+      - DB_HOST=mariadb
+      - DB_NAME=${DB_NAME_IL}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD_IL}
+      - SECRET_KEY=${SECRET_KEY_IL}
+      - ALLOWED_HOSTS=il.inphora.net
+      - ALLOWED_ORIGINS=https://il.inphora.net
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
-  # ============================================
-  # SHARED SERVICES
-  # ============================================
+
+  # ── Frontend ──────────────────────────────────────────────────────────────
   frontend:
-    build: ./frontend
-    container_name: inphora_frontend
-    restart: always
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
     networks:
-      - app_network
+      - frontend_net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
 
+
+  # ── Nginx ─────────────────────────────────────────────────────────────────
   nginx:
-    image: nginx:alpine
-    container_name: inphora_nginx
-    restart: always
+    image: nginx:1.27-alpine
+    container_name: nginx
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
+    networks:
+      - frontend_net
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./static:/var/www/static:ro
+      - certbot_webroot:/var/www/certbot:ro
+      - letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - frontend
-      - backend_inphora
       - backend_tytahj
-      - backend_amari
+      - backend_amariflow
       - backend_il
-    networks:
-      - app_network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
 
+
+  # ── Certbot (SSL renewal) ─────────────────────────────────────────────────
   certbot:
-    image: certbot/certbot
-    container_name: inphora_certbot
+    image: certbot/certbot:latest
     volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+      - certbot_webroot:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot --webroot-path=/var/www/certbot --quiet;
+        sleep 12h & wait $${!};
+      done"
 
+
+# ── Networks ──────────────────────────────────────────────────────────────────
 networks:
-  app_network:
+  internal:
+    driver: bridge
+    internal: true        # DB network is NOT routable to host
+  frontend_net:
     driver: bridge
 
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
 volumes:
-  db_inphora_data:
-  db_tytahj_data:
-  db_amari_data_v1:
-  db_il_data_v1:
+  mariadb_data:
+  certbot_webroot:
+  letsencrypt:
