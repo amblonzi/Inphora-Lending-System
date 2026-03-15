@@ -1,0 +1,68 @@
+# .gitignore — FIXED (CRIT-02, CRIT-04)
+
+# ── Environment / Secrets ─────────────────────────────────────────────────
+.env
+.env.*
+!.env.example          # Only the EXAMPLE file is committed
+env.example.production # RENAMED — use .env.example instead
+*.pem
+*.key
+*.crt
+initial_credentials_*.txt
+
+# ── FIXED CRIT-02: User uploads MUST never be committed ──────────────────
+static/uploads/*
+!static/uploads/.gitkeep   # Keep the directory structure but not content
+
+# ── Python ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.cover
+.hypothesis/
+
+# ── Node / Frontend ───────────────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Docker ────────────────────────────────────────────────────────────────
+.docker/
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Deployment artefacts ──────────────────────────────────────────────────
+deploy_package*.zip
+*.zip
+
+# ── Logs ──────────────────────────────────────────────────────────────────
+*.log
+logs/
