@@ -1,40 +1,62 @@
 """
-database.py — FIXED
-- Connection string fully from environment variables (no hardcoded values)
+database.py
+- Supports both DATABASE_URL (legacy local dev) and individual DB_* env vars (production Docker)
 - Connection pool tuning for production
-- Tenant-aware session factory
+- Falls back to SQLite for local dev if no DB config is set
 """
 
 import os
+import logging
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# ── FIXED: All config from env vars — no hardcoded credentials ────────────────
-DB_USER     = os.getenv("DB_USER",     "inphora_user")
-DB_PASSWORD = os.getenv("DB_PASSWORD")          # Must be set — no default!
-DB_HOST     = os.getenv("DB_HOST",     "mariadb")
-DB_PORT     = os.getenv("DB_PORT",     "3306")
-DB_NAME     = os.getenv("DB_NAME")              # Must be set — tenant-specific
+logger = logging.getLogger(__name__)
 
-if not DB_PASSWORD:
-    raise RuntimeError("DB_PASSWORD environment variable is not set")
-if not DB_NAME:
-    raise RuntimeError("DB_NAME environment variable is not set")
+# ── Resolve DATABASE_URL ──────────────────────────────────────────────────────
+# Priority 1: Full DATABASE_URL (legacy local dev .env)
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-DATABASE_URL = (
-    f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    "?charset=utf8mb4"
-)
+# Priority 2: Build from individual DB_* vars (production Docker per-tenant)
+if not DATABASE_URL:
+    DB_USER     = os.getenv("DB_USER",     "inphora_user")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_HOST     = os.getenv("DB_HOST",     "mariadb")
+    DB_PORT     = os.getenv("DB_PORT",     "3306")
+    DB_NAME     = os.getenv("DB_NAME")
 
-# ── FIXED: Production-grade connection pool settings ──────────────────────────
+    if DB_PASSWORD and DB_NAME:
+        DATABASE_URL = (
+            f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+            "?charset=utf8mb4"
+        )
+    else:
+        # Priority 3: SQLite fallback for local dev without any DB config
+        DATABASE_URL = "sqlite:///./test.db"
+        logger.warning(
+            "No DATABASE_URL or DB_PASSWORD/DB_NAME set — "
+            "falling back to SQLite (test.db). Set proper env vars for production."
+        )
+
+logger.info(f"Using database: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL}")
+
+# ── Engine ────────────────────────────────────────────────────────────────────
+_is_sqlite = DATABASE_URL.startswith("sqlite")
+
 engine = create_engine(
     DATABASE_URL,
-    pool_size=10,           # Max persistent connections
-    max_overflow=20,        # Burst connections above pool_size
-    pool_recycle=3600,      # Recycle connections every hour (avoids stale conn)
-    pool_pre_ping=True,     # Test connection before use (avoids dropped conn errors)
-    echo=os.getenv("SQL_ECHO", "false").lower() == "true",  # Only log SQL in dev
+    # SQLite doesn't support pool settings
+    **(
+        {
+            "pool_size":     10,
+            "max_overflow":  20,
+            "pool_recycle":  3600,
+            "pool_pre_ping": True,
+        }
+        if not _is_sqlite
+        else {"connect_args": {"check_same_thread": False}}
+    ),
+    echo=os.getenv("SQL_ECHO", "false").lower() == "true",
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

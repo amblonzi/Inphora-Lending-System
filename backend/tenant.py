@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, sessionmaker
 import os
 import logging
 from typing import Optional, Dict
-from database import get_engine, SessionLocal
+from database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
