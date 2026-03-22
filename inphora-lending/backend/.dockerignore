@@ -1,0 +1,24 @@
+# Don't bake local dev credentials into the image
+.env
+.env.local
+.env.*
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+
+# Dev tools
+venv
+.venv
+env
+
+# IDE
+.DS_Store
+Thumbs.db
+
+# Logs & DB
+*.log
+test.db

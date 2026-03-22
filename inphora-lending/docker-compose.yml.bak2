@@ -1,0 +1,226 @@
+# docker-compose.yml — FIXED (CRIT-06)
+# Added: resource limits, health checks, named volumes, proper restart policies
+# Removed: wildcard CORS, debug modes, exposed DB ports
+
+# version: "3.9" (obsolete)
+
+x-backend-defaults: &backend-defaults
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+    target: runtime
+  image: inphora-backend_il
+  restart: unless-stopped
+  networks:
+    - internal
+    - frontend_net
+  depends_on:
+    mariadb:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  environment:
+    - ENVIRONMENT=production
+    - SQL_ECHO=false
+    - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+    - REDIS_PASSWORD=${REDIS_PASSWORD}
+  deploy:                          # FIXED CRIT-06: Resource limits per tenant
+    resources:
+      limits:
+        cpus: "0.75"
+        memory: 512M
+      reservations:
+        cpus: "0.25"
+        memory: 256M
+
+services:
+
+  # ── Databases ──────────────────────────────────────────────────────────────
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb       # FIXED: Ensure fixed name for scripts
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_USER:          ${DB_USER}
+      MYSQL_PASSWORD:      ${DB_PASSWORD_IL}
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"  # Fallback to prevent crash if env is missed during init
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./init_sql:/docker-entrypoint-initdb.d:ro   # DB init scripts
+    # FIXED: Do NOT expose port 3306 to host in production
+    # ports: ["3306:3306"]   ← REMOVED
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: >
+      sh -c "redis-server --requirepass \"${REDIS_PASSWORD}\""
+    networks:
+      - internal
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ── Tenant Backends ───────────────────────────────────────────────────────
+  backend_tytahj:
+    <<: *backend-defaults
+    container_name: backend_tytahj
+    environment:
+      - ENVIRONMENT=production
+      - TENANT_NAME=tytahj
+      - DB_HOST=mariadb
+      - DB_NAME=${DB_NAME_TYTAHJ}
+      - DB_USER=${DB_USER_TYTAHJ}
+      - DB_PASSWORD=${DB_PASSWORD_TYTAHJ}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY_TYTAHJ}
+      - ALLOWED_HOSTS=tytahj.inphora.net
+      - ALLOWED_ORIGINS=https://tytahj.inphora.net
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  backend_amariflow:
+    <<: *backend-defaults
+    container_name: backend_amariflow
+    environment:
+      - ENVIRONMENT=production
+      - TENANT_NAME=amariflow
+      - DB_HOST=mariadb
+      - DB_NAME=${DB_NAME_AMARIFLOW}
+      - DB_USER=${DB_USER_AMARIFLOW}
+      - DB_PASSWORD=${DB_PASSWORD_AMARIFLOW}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY_AMARIFLOW}
+      - ALLOWED_HOSTS=amariflow.inphora.net
+      - ALLOWED_ORIGINS=https://amariflow.inphora.net
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  backend_il:
+    <<: *backend-defaults
+    container_name: backend_il
+    environment:
+      - ENVIRONMENT=production
+      - TENANT_NAME=inphora_logic
+      - DB_HOST=mariadb
+      - DB_NAME=${DB_NAME_IL}
+      - DB_USER=${DB_USER_IL}
+      - DB_PASSWORD=${DB_PASSWORD_IL}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY_IL}
+      - ALLOWED_HOSTS=il.inphora.net
+      - ALLOWED_ORIGINS=https://il.inphora.net
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+
+  # ── Frontend ──────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    networks:
+      - frontend_net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+
+  # ── Nginx ─────────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - frontend_net
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./static:/var/www/static:ro
+      - /var/lib/letsencrypt:/var/www/certbot:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - frontend
+      - backend_tytahj
+      - backend_amariflow
+      - backend_il
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+
+
+  # ── Certbot (SSL renewal) ─────────────────────────────────────────────────
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - /var/lib/letsencrypt:/var/www/certbot
+      - /etc/letsencrypt:/etc/letsencrypt
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot --webroot-path=/var/www/certbot --quiet;
+        sleep 12h & wait $${!};
+      done"
+
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  internal:
+    driver: bridge
+    internal: true        # DB network is NOT routable to host
+  frontend_net:
+    driver: bridge
+
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  mariadb_data:
+  redis_data:
+  certbot_webroot:
+  letsencrypt:

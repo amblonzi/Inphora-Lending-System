@@ -1,0 +1,17 @@
+{
+  "name": "Inphora Lending System",
+  "short_name": "Inphora",
+  "description": "Digital Lending Management System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "/il-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
