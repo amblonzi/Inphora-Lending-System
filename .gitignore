@@ -1,54 +1,53 @@
+﻿# Secrets
+.env
+.env.*
+!.env.example
+!env.example.production
+!env.production.example
+
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-.venv/
 venv/
-ENV/
-env/
-
-# Environment files - SECRETS
-.env
-.env.local
-.env.production
-env.example.production
-backend/.env
-
-# Database
+.pytest_cache/
 *.db
 *.sqlite3
 
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
+# Node
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e-report.json
+frontend/test-output.txt
+
+# Build / deploy artifacts
+*.zip
+dist/
+build/
+
+# Client data
+upload_tytahj_2026.*
+backend/bulk_load_tytahj.py
+backend/import_data.csv
+
+# SSL / certs
+*.pem
+certbot/
+private_key.json
+initial_credentials_*.txt
+
+# Nginx backups
+*.bak
+*.bak2
+*.disabled
+
+# Uploads (user-generated content)
+backend/static/uploads/*
+static/uploads/*
+!backend/static/uploads/.gitkeep
+!static/uploads/.gitkeep
 
 # OS
 .DS_Store
 Thumbs.db
-
-# Archives
-*.zip
-*.tar.gz
-
-# Logs
-*.log
-logs/
-
-# Dependencies
-node_modules/
-dist/
-dist-ssr/
-
-# Project Specific
-backend/bulk_load_tytahj.py
-backend/bulk_import_clients.py
-backend/debug_users.py
-deploy_package.zip
-deploy_package_v2.zip
-run_dev.ps1
-docker-compose.dev.yml
-reset_local_env.ps1
