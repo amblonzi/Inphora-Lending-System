@@ -145,6 +145,12 @@ class MpesaIncomingTransaction(MpesaIncomingTransactionBase):
 class BranchBase(BaseModel):
     name: str
     location: Optional[str] = None
+    
+    # Tier 2 - Paybill
+    mpesa_shortcode: Optional[str] = None
+    mpesa_passkey: Optional[str] = None
+    mpesa_consumer_key: Optional[str] = None
+    mpesa_consumer_secret: Optional[str] = None
 
 class BranchCreate(BranchBase):
     pass
@@ -206,6 +212,11 @@ class ClientBase(BaseModel):
     bank_account_number: Optional[str] = None
     bank_account_name: Optional[str] = None
     preferred_disbursement: str = "mpesa"
+    
+    # Tier 1 Regulatory - KYC
+    is_id_verified: bool = False
+    id_verification_date: Optional[datetime] = None
+    id_verification_metadata: Optional[str] = None
 
     @field_validator('dob', mode='before')
     @classmethod
@@ -270,6 +281,9 @@ class LoanProductBase(BaseModel):
     duration_unit: Optional[str] = "months"
     
     first_cycle_limit: Optional[float] = None
+    
+    # Tier 1 Regulatory - APR
+    apr_effective_rate: float = 0.0
 
 class LoanProductCreate(LoanProductBase):
     pass
@@ -398,6 +412,10 @@ class Loan(LoanBase):
     # Calculated fields
     outstanding_balance: Optional[float] = None
     accrued_penalties: Optional[float] = None
+    
+    # Tier 1 Regulatory - APR
+    apr_at_offered: Optional[float] = None
+    total_cost_of_credit: Optional[float] = None
     
     class Config:
         from_attributes = True
@@ -605,3 +623,96 @@ class ChequeDiscount(ChequeDiscountBase):
 
     class Config:
         from_attributes = True
+
+# Tier 1 Regulatory Schemas
+
+class StatutoryReportBase(BaseModel):
+    report_type: str
+    period_month: int
+    period_year: int
+    status: str = "pending"
+
+class StatutoryReport(StatutoryReportBase):
+    id: int
+    file_url: Optional[str] = None
+    generated_at: datetime
+    generated_by_id: Optional[int] = None
+    
+    class Config:
+        from_attributes = True
+
+class ComplianceChecklistBase(BaseModel):
+    category: str
+    requirement: str
+    status: str = "non-compliant"
+    evidence_url: Optional[str] = None
+    notes: Optional[str] = None
+
+class ComplianceChecklist(ComplianceChecklistBase):
+    id: int
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+# Tier 3 - Chama (Group Lending) Schemas
+
+class ChamaGroupBase(BaseModel):
+    name: str
+    branch_id: int
+    description: Optional[str] = None
+
+class ChamaGroupCreate(ChamaGroupBase):
+    pass
+
+class ChamaMemberBase(BaseModel):
+    group_id: int
+    client_id: int
+    role: str = "member"
+
+class ChamaMember(ChamaMemberBase):
+    id: int
+    joined_at: datetime
+    class Config:
+        from_attributes = True
+
+class ChamaGroup(ChamaGroupBase):
+    id: int
+    total_savings: float
+    status: str
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+# Tier 3 - Logbook Collateral
+class LogbookCollateralBase(BaseModel):
+    registration_number: str
+    chassis_number: Optional[str] = None
+    make_model: str
+
+class LogbookCollateral(LogbookCollateralBase):
+    id: int
+    ntsa_verified: bool
+    caveat_lodged: bool
+    class Config:
+        from_attributes = True
+
+# Tier 3 - Loan Rollover
+class LoanRolloverBase(BaseModel):
+    rollover_number: int
+    new_end_date: date
+    additional_interest: float
+    reason: str
+
+class LoanRollover(LoanRolloverBase):
+    id: int
+    created_at: datetime
+    authorized_by: int
+    class Config:
+        from_attributes = True
+
+# Tier 2 - STK Push
+class StkPushRequest(BaseModel):
+    loan_id: int
+    amount: float
+    phone: str

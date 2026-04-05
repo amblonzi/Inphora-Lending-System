@@ -308,3 +308,125 @@ async def initiate_stk_push(
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"STK Push failed: {str(e)}")
+
+@router.post("/stk/callback/{loan_id}")
+async def stk_callback(
+    loan_id: int,
+    request: Request,
+    db: Session = Depends(get_tenant_db)
+):
+    """
+    Handles STK Push response from Safaricom.
+    Auto-creates repayment if successful.
+    """
+    try:
+        body = await request.json()
+        logger.info(f"STK Callback for Loan {loan_id}: {json.dumps(body)}")
+        
+        stk_data = body.get("Body", {}).get("stkCallback", {})
+        result_code = stk_data.get("ResultCode")
+        checkout_id = stk_data.get("CheckoutRequestID")
+        
+        if result_code == 0:
+            # Success
+            metadata = stk_data.get("CallbackMetadata", {}).get("Item", [])
+            item_dict = {item["Name"]: item.get("Value") for item in metadata}
+            
+            amount = item_dict.get("Amount")
+            receipt = item_dict.get("MpesaReceiptNumber")
+            phone = item_dict.get("PhoneNumber")
+            
+            # Create Incoming Transaction Record
+            trans = models.MpesaIncomingTransaction(
+                transaction_id=receipt,
+                checkout_request_id=checkout_id,
+                amount=amount,
+                phone=str(phone),
+                loan_id=loan_id,
+                status="matched",
+                raw_callback_data=json.dumps(body)
+            )
+            db.add(trans)
+            
+            # Create Repayment
+            repayment = models.Repayment(
+                loan_id=loan_id,
+                amount=amount,
+                payment_date=datetime.utcnow(),
+                mpesa_transaction_id=receipt,
+                payment_method="mpesa",
+                notes=f"Auto-STK: {receipt}"
+            )
+            db.add(repayment)
+            db.commit()
+            logger.info(f"Auto-reconciled STK for Loan {loan_id}, Receipt: {receipt}")
+    except Exception as e:
+        logger.error(f"STK Callback Error: {str(e)}")
+        
+    return {"ResultCode": 0, "ResultDesc": "Accepted"}
+
+@router.post("/c2b/validation")
+async def c2b_validation(request: Request):
+    return {"ResultCode": 0, "ResultDesc": "Accepted"}
+
+@router.post("/c2b/confirmation")
+async def c2b_confirmation(
+    request: Request,
+    db: Session = Depends(get_tenant_db)
+):
+    """
+    Handles C2B (Paybill/Till) confirmation.
+    Attempts to match via BillRefNumber (Loan ID).
+    """
+    try:
+        body = await request.json()
+        logger.info(f"C2B Confirmation: {json.dumps(body)}")
+        
+        receipt = body.get("TransID")
+        amount = float(body.get("TransAmount", 0))
+        phone = body.get("MSISDN")
+        bill_ref = body.get("BillRefNumber", "").strip()
+        
+        # Try to extract Loan ID from BillRef (e.g., L123 or just 123)
+        loan_id = None
+        if bill_ref.upper().startswith("L"):
+            try:
+                loan_id = int(bill_ref[1:])
+            except: pass
+        elif bill_ref.isdigit():
+            loan_id = int(bill_ref)
+            
+        status = "unmatched"
+        if loan_id:
+            loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
+            if loan:
+                status = "matched"
+                
+        # Create Transaction
+        trans = models.MpesaIncomingTransaction(
+            transaction_id=receipt,
+            amount=amount,
+            phone=phone,
+            bill_ref=bill_ref,
+            loan_id=loan_id,
+            status=status,
+            raw_callback_data=json.dumps(body)
+        )
+        db.add(trans)
+        
+        if status == "matched":
+            repayment = models.Repayment(
+                loan_id=loan_id,
+                amount=amount,
+                payment_date=datetime.utcnow(),
+                mpesa_transaction_id=receipt,
+                payment_method="mpesa",
+                notes=f"Auto-C2B: {receipt}"
+            )
+            db.add(repayment)
+            
+        db.commit()
+    except Exception as e:
+        logger.error(f"C2B Confirmation Error: {str(e)}")
+        
+    return {"ResultCode": 0, "ResultDesc": "Accepted"}

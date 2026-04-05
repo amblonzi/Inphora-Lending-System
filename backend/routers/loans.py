@@ -7,7 +7,8 @@ import models, schemas, auth
 from database import get_db
 from tenant import get_tenant_db
 from pagination import paginate, PaginatedResponse
-from utils import log_activity, create_notification
+from utils import log_activity, create_notification, calculate_apr
+from services.pdf_service import generate_loan_statement_pdf, generate_loan_offer_letter_pdf
 
 router = APIRouter(prefix="/loans", tags=["loans"])
 
@@ -68,8 +69,25 @@ def create_loan(
     db.commit()
     db.refresh(db_loan)
     
-    # ...] guarantors, collateral etc logic
-    # (Leaving unchanged to save context, but will ensure it uses the db provided)
+    # Calculate APR and Total Cost of Credit for disclosure
+    # Sum upfront fees
+    upfront_fees = (db_loan.processing_fee or 0.0) + (db_loan.insurance_fee or 0.0) + (db_loan.valuation_fee or 0.0) + (db_loan.registration_fee or 0.0)
+    
+    # Simple Interest Total Cost (Approx for disclosure)
+    total_interest = (db_loan.amount * (db_loan.interest_rate or 0.0) * db_loan.duration_months / 100)
+    db_loan.total_cost_of_credit = total_interest + upfront_fees
+    
+    # Calculate APR
+    db_loan.apr_at_offered = calculate_apr(
+        db_loan.amount, 
+        (db_loan.interest_rate or 0.0) / 100, 
+        db_loan.duration_months, 
+        upfront_fees,
+        db_loan.duration_unit or "months"
+    )
+    
+    db.commit()
+    db.refresh(db_loan)
     
     # Create Guarantors
     for g in loan.guarantors:
@@ -472,3 +490,67 @@ def export_loan_statement(
             "Content-Disposition": f"attachment; filename={filename}"
         }
     )
+
+@router.get("/{loan_id}/offer-letter")
+def export_loan_offer_letter(
+    loan_id: int,
+    db: Session = Depends(get_tenant_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Generates the printable Loan Offer Letter with APR disclosure."""
+    loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
+    if not loan:
+        raise HTTPException(status_code=404, detail="Loan not found")
+        
+    org_config = db.query(models.OrganizationConfig).first()
+    if not org_config:
+        org_config = models.OrganizationConfig(organization_name="Inphora Lending System")
+        
+    pdf_buffer = generate_loan_offer_letter_pdf(org_config, loan.client, loan)
+    
+    filename = f"Offer_Letter_Loan_{loan.id}_{loan.client.last_name}.pdf"
+    return Response(
+        content=pdf_buffer.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
+@router.post("/{loan_id}/rollover")
+def rollover_loan(
+    loan_id: int,
+    rollover_data: schemas.LoanRolloverBase,
+    db: Session = Depends(get_tenant_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    Extends a loan's duration. Max 2 rollovers allowed.
+    """
+    loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
+    if not loan:
+        raise HTTPException(status_code=404, detail="Loan not found")
+        
+    # Check rollover count
+    existing_count = db.query(models.LoanRollover).filter(models.LoanRollover.loan_id == loan_id).count()
+    if existing_count >= 2:
+        raise HTTPException(status_code=400, detail="Maximum of 2 rollovers allowed per loan")
+        
+    # Update Loan
+    loan.end_date = rollover_data.new_end_date
+    
+    # Create Rollover record
+    db_rollover = models.LoanRollover(
+        loan_id=loan_id,
+        rollover_number=existing_count + 1,
+        new_end_date=rollover_data.new_end_date,
+        additional_interest=rollover_data.additional_interest,
+        reason=rollover_data.reason,
+        authorized_by=current_user.id
+    )
+    db.add(db_rollover)
+    db.commit()
+    
+    log_activity(db, current_user.id, "rollover", "loan", loan_id, {"rollover_number": existing_count+1})
+    
+    return {"message": f"Loan rolled over successfully. Rollover #{existing_count+1}"}

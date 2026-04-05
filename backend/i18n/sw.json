@@ -1,0 +1,7 @@
+{
+    "welcome": "Karibu kwenye Inphora Lending System",
+    "loan_status": "Hali ya Mkopo",
+    "balance": "Salio",
+    "repayment_due": "Malipo yanapaswa kulipwa tarehe {date}",
+    "success_payment": "Malipo yamepokelewa kikamilifu"
+}

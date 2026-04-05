@@ -6,6 +6,9 @@ from datetime import date, datetime, timedelta
 import models, schemas, auth
 from database import get_db
 from tenant import get_tenant_db
+from services import reporting_service
+from fastapi.responses import StreamingResponse
+import io
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -238,3 +241,64 @@ def get_client_trends(
         })
         
     return trends
+
+# --- Tier 1 Regulatory: CBK Returns ---
+
+@router.post("/cbk-returns/generate")
+def generate_statutory_return(
+    month: int,
+    year: int,
+    report_type: str = "DCP",
+    db: Session = Depends(get_tenant_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Triggers the generation of a CBK statutory return."""
+    try:
+        # 1. Generate the Excel in memory
+        excel_buffer = reporting_service.generate_cbk_monthly_return(db, month, year, report_type)
+        
+        # 2. Record in database (Simplified - not saving file to disk/S3 in this mock)
+        new_report = models.StatutoryReport(
+            report_type=f"CBK_{report_type}_MONTHLY",
+            period_month=month,
+            period_year=year,
+            status="generated",
+            generated_by_id=current_user.id
+        )
+        db.add(new_report)
+        db.commit()
+        db.refresh(new_report)
+        
+        return {"message": "Report generated successfully", "report_id": new_report.id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/cbk-returns")
+def list_statutory_reports(
+    db: Session = Depends(get_tenant_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Lists all generated statutory reports."""
+    return db.query(models.StatutoryReport).order_by(models.StatutoryReport.generated_at.desc()).all()
+
+@router.get("/cbk-returns/{report_id}/download")
+def download_statutory_report(
+    report_id: int,
+    db: Session = Depends(get_tenant_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Downloads a specific statutory report."""
+    report = db.query(models.StatutoryReport).filter(models.StatutoryReport.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+        
+    # Re-generate on the fly for this implementation (assuming no persistent storage for files yet)
+    excel_buffer = reporting_service.generate_cbk_monthly_return(db, report.period_month, report.period_year)
+    
+    filename = f"CBK_Return_{report.period_year}_{report.period_month}.xlsx"
+    return StreamingResponse(
+        excel_buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

@@ -5,6 +5,7 @@ from datetime import datetime
 import models, schemas, auth
 from tenant import get_tenant_db
 from pagination import paginate
+from services.payment_gateway import PaymentGateway
 
 router = APIRouter(prefix="/repayments", tags=["repayments"])
 
@@ -36,3 +37,24 @@ def get_repayment_stats(
         "total_count": len(total_collected),
         "total_amount": total_val
     }
+
+@router.post("/stk-push")
+def initiate_stk_push(
+    request: schemas.StkPushRequest,
+    db: Session = Depends(get_tenant_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    Triggers an M-Pesa STK push for loan repayment.
+    """
+    gateway = PaymentGateway(db)
+    result = gateway.trigger_stk_push(
+        loan_id=request.loan_id,
+        amount=request.amount,
+        phone=request.phone
+    )
+    
+    if result.get("ResponseCode") == "0":
+        return {"success": True, "message": "STK Push initiated successfully", "data": result}
+    else:
+        return {"success": False, "message": result.get("CustomerMessage", "Failed to initiate STK push"), "error": result}

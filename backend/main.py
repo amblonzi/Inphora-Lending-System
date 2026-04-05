@@ -97,7 +97,7 @@ from routers import (
     users, clients, loan_products, loans, expenses, reports, dashboard,
     branches, customer_groups, upload, mpesa, settings, disbursements,
     organization_config, notifications, pwa, sms, logs, repayments,
-    cheque_discounting
+    cheque_discounting, compliance, chama, collections, ussd
 )
 
 # Register routers
@@ -121,6 +121,10 @@ app.include_router(notifications.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
 app.include_router(repayments.router, prefix="/api")
 app.include_router(cheque_discounting.router, prefix="/api")
+app.include_router(compliance.router, prefix="/api")
+app.include_router(chama.router, prefix="/api")
+app.include_router(collections.router, prefix="/api")
+app.include_router(ussd.router, prefix="/api")
 
 # Global error handlers
 @app.exception_handler(HTTPException)

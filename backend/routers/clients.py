@@ -7,6 +7,7 @@ from database import get_db
 from tenant import get_tenant_db
 from pagination import paginate
 from utils import log_activity, create_notification
+from services import kyc_service
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
@@ -194,5 +195,32 @@ def delete_kyc_document(
     db.delete(doc)
     db.commit()
     
+    
     log_activity(db, current_user.id, "delete_kyc", "client", client_id, {"document_id": document_id})
     return {"message": "Document deleted successfully"}
+
+@router.post("/{client_id}/verify-id")
+def verify_client_id(
+    client_id: int,
+    db: Session = Depends(get_tenant_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Triggers real-time National ID verification for a client."""
+    client = db.query(models.Client).filter(models.Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+        
+    result = kyc_service.verify_national_id(
+        db, 
+        client_id, 
+        client.id_number, 
+        f"{client.first_name} {client.last_name}",
+        client.dob.isoformat() if client.dob else None
+    )
+    
+    if not result["success"]:
+        # We don't throw 400 here because the API call succeeded, but verification failed
+        pass
+        
+    log_activity(db, current_user.id, "verify_id", "client", client_id, {"status": result["success"]})
+    return result

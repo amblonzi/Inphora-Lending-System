@@ -50,14 +50,14 @@ services:
     networks:
       - app_network
     ports:
-      - "8000:8000"
+      - "8001:8000"
 
   # Frontend
   frontend:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: http://localhost:8000
+        VITE_API_URL: http://localhost:8001
     container_name: inphora_frontend_local
     restart: always
     networks:

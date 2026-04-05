@@ -65,6 +65,11 @@ class Client(Base):
     savings_accounts = relationship("SavingsAccount", back_populates="client")
     loans = relationship("Loan", back_populates="client")
     kyc_documents = relationship("ClientKYCDocument", back_populates="client")
+    
+    # Tier 1 Regulatory - KYC Verification
+    is_id_verified = Column(Boolean, default=False)
+    id_verification_date = Column(DateTime, nullable=True)
+    id_verification_metadata = Column(Text, nullable=True) # JSON strings
 
 class ClientKYCDocument(Base):
     __tablename__ = "client_kyc_documents"
@@ -106,6 +111,9 @@ class LoanProduct(Base):
     
     # Limits
     first_cycle_limit = Column(Float, nullable=True)
+    
+    # Tier 1 Regulatory - APR
+    apr_effective_rate = Column(Float, default=0.0)
 
 class Loan(Base):
     __tablename__ = "loans"
@@ -131,6 +139,10 @@ class Loan(Base):
     duration_unit = Column(String(20), default="months")
     
     status = Column(String(50), default="pending") # pending, approved, active, completed, defaulted, rejected
+    
+    # Tier 1 Regulatory - APR & Disclosure
+    apr_at_offered = Column(Float, nullable=True)
+    total_cost_of_credit = Column(Float, nullable=True)
     
     # Multi-level Approval
     current_approval_level = Column(Integer, default=1) # 1: Officer Review, 2: Manager Review, 3: Final
@@ -185,7 +197,8 @@ class MpesaIncomingTransaction(Base):
     __tablename__ = "mpesa_incoming_transactions"
     
     id = Column(Integer, primary_key=True, index=True)
-    transaction_id = Column(String(100), unique=True, index=True)
+    transaction_id = Column(String(100), unique=True, index=True, nullable=True)
+    checkout_request_id = Column(String(100), unique=True, index=True, nullable=True)
     amount = Column(Float)
     phone = Column(String(20))
     bill_ref = Column(String(100))
@@ -294,6 +307,78 @@ class DisbursementTransaction(Base):
     # Relationships
     loan = relationship("Loan", backref="disbursements")
     client = relationship("Client")
+
+# Tier 3 - Group Lending (Chama)
+class ChamaGroup(Base):
+    __tablename__ = "chama_groups"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"))
+    description = Column(Text, nullable=True)
+    total_savings = Column(Float, default=0.0)
+    status = Column(String(50), default="active")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    members = relationship("ChamaMember", back_populates="group")
+
+class ChamaMember(Base):
+    __tablename__ = "chama_members"
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("chama_groups.id"))
+    client_id = Column(Integer, ForeignKey("clients.id"))
+    role = Column(String(50), default="member") # chair, secretary, member
+    joined_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    group = relationship("ChamaGroup", back_populates="members")
+    client = relationship("Client")
+
+# Tier 3 - Collateral Tracking (Logbooks)
+class LogbookCollateral(Base):
+    __tablename__ = "logbook_collateral"
+    id = Column(Integer, primary_key=True, index=True)
+    loan_id = Column(Integer, ForeignKey("loans.id"))
+    registration_number = Column(String(50), unique=True) # KXX 000X
+    chassis_number = Column(String(100), nullable=True)
+    make_model = Column(String(255))
+    ntsa_verified = Column(Boolean, default=False)
+    caveat_lodged = Column(Boolean, default=False)
+    evidence_url = Column(String(500), nullable=True)
+
+# Tier 3 - Governed Loan Rollover
+class LoanRollover(Base):
+    __tablename__ = "loan_rollovers"
+    id = Column(Integer, primary_key=True, index=True)
+    loan_id = Column(Integer, ForeignKey("loans.id"))
+    rollover_number = Column(Integer) # 1, 2 (Max 2)
+    new_end_date = Column(Date)
+    additional_interest = Column(Float)
+    reason = Column(Text)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    authorized_by = Column(Integer, ForeignKey("users.id"))
+
+class StatutoryReport(Base):
+    __tablename__ = "statutory_reports"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    report_type = Column(String(50)) # CBK_MFI_MONTHLY, CBK_DCP_MONTHLY
+    period_month = Column(Integer)
+    period_year = Column(Integer)
+    file_url = Column(String(500), nullable=True)
+    status = Column(String(50), default="pending") # pending, generated, failed
+    generated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    generated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+class ComplianceChecklist(Base):
+    __tablename__ = "compliance_checklist"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String(100)) # AML, Data Privacy, Consumer Protection
+    requirement = Column(Text)
+    status = Column(String(50), default="non-compliant") # compliant, non-compliant, na
+    evidence_url = Column(String(500), nullable=True)
+    notes = Column(Text, nullable=True)
+    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     user = relationship("User")
 
 
@@ -305,6 +390,12 @@ class Branch(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True)
     location = Column(String(255))
+    
+    # Tier 2 - Multi-paybill support
+    mpesa_shortcode = Column(String(20), nullable=True)
+    mpesa_passkey = Column(String(100), nullable=True)
+    mpesa_consumer_key = Column(String(100), nullable=True)
+    mpesa_consumer_secret = Column(String(100), nullable=True)
 
 class CustomerGroup(Base):
     __tablename__ = "customer_groups"

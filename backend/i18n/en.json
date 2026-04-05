@@ -1,0 +1,7 @@
+{
+    "welcome": "Welcome to Inphora Lending System",
+    "loan_status": "Loan Status",
+    "balance": "Balance",
+    "repayment_due": "Repayment is due on {date}",
+    "success_payment": "Payment received successfully"
+}

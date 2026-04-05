@@ -117,3 +117,97 @@ def generate_loan_statement_pdf(organization, client, loan, repayments):
     doc.build(elements)
     buffer.seek(0)
     return buffer
+
+def generate_loan_offer_letter_pdf(organization, client, loan):
+    """
+    Generate a standardized Loan Offer Letter compliant with CBK disclosure requirements.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    header_style = ParagraphStyle(
+        'HeaderStyle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        textColor=colors.HexColor(organization.primary_color or "#f97316"),
+        alignment=1 # Center
+    )
+    
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        alignment=1,
+        spaceAfter=20
+    )
+    
+    label_style = ParagraphStyle('LabelStyle', parent=styles['Normal'], fontName='Helvetica-Bold')
+    body_style = styles['Normal']
+    
+    elements = []
+    
+    # 1. Header
+    elements.append(Paragraph(f"<b>{organization.organization_name.upper()}</b>", header_style))
+    elements.append(Paragraph("LOAN OFFER LETTER & DISCLOSURE STATEMENT", title_style))
+    elements.append(Spacer(1, 0.1*inch))
+    
+    # 2. Date and Client Info
+    elements.append(Paragraph(f"<b>Date:</b> {datetime.now().strftime('%d %B %Y')}", body_style))
+    elements.append(Paragraph(f"<b>To:</b> {client.first_name} {client.last_name}", body_style))
+    elements.append(Paragraph(f"<b>ID Number:</b> {client.id_number}", body_style))
+    elements.append(Paragraph(f"<b>Phone:</b> {client.phone}", body_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    elements.append(Paragraph("We are pleased to offer you a loan facility based on the terms and conditions outlined below:", body_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # 3. KEY LOAN TERMS (The Disclosure Box)
+    disclosure_data = [
+        [Paragraph("<b>LOAN TERM</b>", label_style), Paragraph("<b>DETAILS</b>", label_style)],
+        ["Loan Amount (Principal)", f"{organization.currency} {loan.amount:,.2f}"],
+        ["Interest Rate", f"{loan.interest_rate}% per {loan.duration_unit or 'month'}"],
+        ["Loan Duration", f"{loan.duration_months} {loan.duration_unit or 'months'}"],
+        ["Total Interest to be Paid", f"{organization.currency} {(loan.amount * loan.interest_rate * loan.duration_months / 100):,.2f}"],
+        ["Upfront Fees (Processing, Insurance, etc.)", f"{organization.currency} {(loan.processing_fee + loan.insurance_fee + loan.valuation_fee + loan.registration_fee):,.2f}"],
+        [Paragraph("<b>TOTAL COST OF CREDIT</b>", label_style), Paragraph(f"<b>{organization.currency} {loan.total_cost_of_credit or 0:,.2f}</b>", label_style)],
+        [Paragraph("<b>ANNUAL PERCENTAGE RATE (APR)</b>", label_style), Paragraph(f"<b>{loan.apr_at_offered or 0}%</b>", label_style)],
+    ]
+    
+    disclosure_table = Table(disclosure_data, colWidths=[2.5*inch, 3.5*inch])
+    disclosure_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('PADDING', (0, 0), (-1, -1), 6),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    elements.append(disclosure_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # 4. Conditions
+    elements.append(Paragraph("<b>Terms and Conditions:</b>", label_style))
+    terms = [
+        "1. Repayments shall be made according to the agreed schedule.",
+        "2. Late payments will attract a penalty as per the loan product policy.",
+        "3. The lender reserves the right to share credit information with licensed Credit Reference Bureaus (CRB).",
+        "4. By signing this letter, you consent to the collection and processing of your personal data for loan management."
+    ]
+    for term in terms:
+        elements.append(Paragraph(term, body_style))
+        elements.append(Spacer(1, 0.05*inch))
+        
+    elements.append(Spacer(1, 0.4*inch))
+    
+    # 5. Signatures
+    sig_data = [
+        [Paragraph("<b>BORROWER SIGNATURE:</b>", label_style), Paragraph("<b>LENDER SIGNATURE:</b>", label_style)],
+        ["\n\n__________________________", "\n\n__________________________"],
+        [f"{client.first_name} {client.last_name}", f"For: {organization.organization_name}"]
+    ]
+    sig_table = Table(sig_data, colWidths=[3*inch, 3*inch])
+    elements.append(sig_table)
+    
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
