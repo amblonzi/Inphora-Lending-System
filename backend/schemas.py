@@ -11,6 +11,9 @@ class PaginatedResponse(BaseModel, Generic[T]):
     size: int
     pages: int
 
+    class Config:
+        from_attributes = True
+
 # Enhanced Authentication Schemas
 class TokenData(BaseModel):
     email: Optional[str] = None
@@ -76,7 +79,7 @@ class Userimpl(UserBase):
     id: int
     is_active: bool
     permissions: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
 
     class Config:
@@ -90,7 +93,7 @@ class ActivityLogBase(BaseModel):
     resource_id: Optional[str] = None
     details: Optional[str] = None
     ip_address: Optional[str] = None
-    timestamp: datetime
+    timestamp: Optional[datetime] = None
 
 class ActivityLog(ActivityLogBase):
     id: int
@@ -111,7 +114,7 @@ class OTPVerify(BaseModel):
 # Repayment Schemas
 class RepaymentBase(BaseModel):
     amount: float
-    payment_date: date
+    payment_date: Optional[date] = None
     notes: Optional[str] = None
     mpesa_transaction_id: Optional[str] = None
     payment_method: str = "manual"
@@ -129,9 +132,9 @@ class MpesaIncomingTransactionBase(BaseModel):
     transaction_id: str
     amount: float
     phone: str
-    bill_ref: str
+    bill_ref: Optional[str] = None  # May be absent in some gateway callbacks
     status: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
     client_id: Optional[int] = None
     loan_id: Optional[int] = None
     repayment_id: Optional[int] = None
@@ -230,13 +233,45 @@ class ClientCreate(ClientBase):
     customer_group_id: Optional[int] = None
     next_of_kin: Optional[NextOfKinCreate] = None
 
+class ClientUpdate(BaseModel):
+    """All-Optional schema for partial client updates (PATCH semantics)"""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    id_number: Optional[str] = None
+    address: Optional[str] = None
+    dob: Optional[date] = None
+    gender: Optional[str] = None
+    marital_status: Optional[str] = None
+    document_url: Optional[str] = None
+    town: Optional[str] = None
+    estate: Optional[str] = None
+    house_number: Optional[str] = None
+    mpesa_phone: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_account_name: Optional[str] = None
+    preferred_disbursement: Optional[str] = None
+    is_id_verified: Optional[bool] = None
+    branch_id: Optional[int] = None
+    customer_group_id: Optional[int] = None
+    next_of_kin: Optional[NextOfKinCreate] = None
+
+    @field_validator('dob', mode='before')
+    @classmethod
+    def empty_string_to_none(cls, v):
+        if v == "":
+            return None
+        return v
+
 class ClientKYCDocumentBase(BaseModel):
     document_type: Optional[str] = None
     document_url: str
 
 class ClientKYCDocument(ClientKYCDocumentBase):
     id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
     class Config:
         from_attributes = True
 
@@ -253,6 +288,8 @@ class Client(ClientBase):
     class Config:
         from_attributes = True
 
+# Alias used by update endpoint
+ClientRead = Client
 class ClientKYCDocumentCreate(ClientKYCDocumentBase):
     pass
 
@@ -365,7 +402,7 @@ class LoanBase(BaseModel):
     duration_months: int = 1 # Default to 1 to avoid validation errors
     duration_count: Optional[int] = None
     duration_unit: Optional[str] = "months"
-    start_date: date
+    start_date: Optional[date] = None
     repayment_frequency: str = "monthly"
     is_processing_fee_waived: bool = False
 
@@ -386,7 +423,7 @@ class LoanApprovalCreate(LoanApprovalBase):
 class LoanApproval(LoanApprovalBase):
     id: int
     user_id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
     class Config:
         from_attributes = True
 
@@ -394,7 +431,7 @@ class Loan(LoanBase):
     id: int
     status: str
     interest_rate: float
-    end_date: date
+    end_date: Optional[date] = None
     current_approval_level: int
     
     # Approval info
@@ -426,7 +463,7 @@ class LoanApprovalRequest(BaseModel):
 
 class LoanScheduleBase(BaseModel):
     installment_number: int
-    due_date: date
+    due_date: Optional[date] = None
     amount_due: float
     principal_amount: float
     interest_amount: float
@@ -455,7 +492,7 @@ class ExpenseBase(BaseModel):
     amount: float
     category_id: Optional[int] = None
     category: Optional[str] = None # Optional fallback
-    date: date
+    date: Optional[date] = None
     
     # Recurring Fields
     is_recurring: bool = False
@@ -492,7 +529,7 @@ class DisbursementTransaction(DisbursementTransactionBase):
     mpesa_result_code: Optional[str] = None
     mpesa_result_desc: Optional[str] = None
     initiated_by: int
-    initiated_at: datetime
+    initiated_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     error_message: Optional[str] = None
 
@@ -512,7 +549,7 @@ class SystemSettingCreate(SystemSettingBase):
 
 class SystemSetting(SystemSettingBase):
     id: int
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -575,8 +612,8 @@ class OrganizationConfigUpdate(BaseModel):
 
 class OrganizationConfig(OrganizationConfigBase):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -593,7 +630,7 @@ class NotificationCreate(NotificationBase):
 
 class Notification(NotificationBase):
     id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
@@ -617,7 +654,7 @@ class ChequeDiscount(ChequeDiscountBase):
     discount_amount: float
     net_amount: float
     status: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
     
     client: Optional[Client] = None
 
@@ -635,7 +672,7 @@ class StatutoryReportBase(BaseModel):
 class StatutoryReport(StatutoryReportBase):
     id: int
     file_url: Optional[str] = None
-    generated_at: datetime
+    generated_at: Optional[datetime] = None
     generated_by_id: Optional[int] = None
     
     class Config:
@@ -650,7 +687,7 @@ class ComplianceChecklistBase(BaseModel):
 
 class ComplianceChecklist(ComplianceChecklistBase):
     id: int
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
@@ -672,7 +709,7 @@ class ChamaMemberBase(BaseModel):
 
 class ChamaMember(ChamaMemberBase):
     id: int
-    joined_at: datetime
+    joined_at: Optional[datetime] = None
     class Config:
         from_attributes = True
 
@@ -680,7 +717,7 @@ class ChamaGroup(ChamaGroupBase):
     id: int
     total_savings: float
     status: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
     class Config:
         from_attributes = True
 
@@ -706,7 +743,7 @@ class LoanRolloverBase(BaseModel):
 
 class LoanRollover(LoanRolloverBase):
     id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
     authorized_by: int
     class Config:
         from_attributes = True

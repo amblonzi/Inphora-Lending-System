@@ -55,10 +55,6 @@ export const api = {
       });
       return res.data;
     },
-    verifyOtp: async (userId, otpCode) => {
-      const res = await apiClient.post('/api/auth/verify-otp', { user_id: userId, otp_code: otpCode });
-      return res.data;
-    },
     verify2FA: async (email, otp) => {
       const res = await apiClient.post('/api/auth/verify-2fa', { email, otp });
       return res.data;
@@ -102,8 +98,8 @@ export const api = {
     },
     create: async (data) => (await apiClient.post('/api/loans/', data)).data,
     get: async (id) => (await apiClient.get(`/api/loans/${id}`)).data,
-    approve: async (id) => (await apiClient.post(`/api/loans/${id}/approve`)).data,
-    reject: async (id) => (await apiClient.post(`/api/loans/${id}/reject`)).data,
+    approve: async (id, data) => (await apiClient.post(`/api/loans/${id}/approve`, data)).data,
+    reject: async (id, notes = '') => (await apiClient.post(`/api/loans/${id}/approve`, { action: 'reject', notes })).data,
     disburse: async (id) => (await apiClient.post(`/api/loans/${id}/disburse`)).data,
     repay: async (id, data) => (await apiClient.post(`/api/loans/${id}/repayments`, data)).data,
     getSchedule: async (id) => {
@@ -234,6 +230,27 @@ export const api = {
     create: async (data) => (await apiClient.post('/api/cheque-discounting/', data)).data,
     updateStatus: async (id, status) => (await apiClient.put(`/api/cheque-discounting/${id}/status`, null, { params: { status } })).data,
     delete: async (id) => (await apiClient.delete(`/api/cheque-discounting/${id}`)).data,
+  },
+
+  compliance: {
+    getChecklist: async () => (await apiClient.get('/api/compliance/checklist')).data,
+    updateItem: async (id, status, notes = '', evidence_url = '') => 
+      (await apiClient.patch(`/api/compliance/checklist/${id}`, null, { params: { status, notes, evidence_url } })).data,
+    seed: async () => (await apiClient.post('/api/compliance/seed')).data,
+  },
+
+  chama: {
+    listGroups: async () => (await apiClient.get('/api/chama/groups')).data,
+    createGroup: async (data) => (await apiClient.post('/api/chama/groups', data)).data,
+    addMember: async (groupId, clientId, role = 'member') => 
+      (await apiClient.post(`/api/chama/groups/${groupId}/members`, null, { params: { client_id: clientId, role } })).data,
+    getMembers: async (groupId) => (await apiClient.get(`/api/chama/groups/${groupId}/members`)).data,
+  },
+
+  collections: {
+    getDashboard: async () => (await apiClient.get('/api/collections/dashboard')).data,
+    writeOff: async (loanId, reason) => 
+      (await apiClient.post(`/api/collections/loans/${loanId}/write-off`, null, { params: { reason } })).data,
   },
 
   // File Upload

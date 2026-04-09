@@ -93,7 +93,15 @@ def get_profit_loss(
             "total_expenses": round(total_expenses, 2),
             "net_profit": round(net_profit, 2),
             "expense_breakdown": [
-                {"category": e.category or "Other", "amount": e.amount, "description": e.description}
+                {
+                    "category": (
+                        e.expense_category.name
+                        if hasattr(e, 'expense_category') and e.expense_category
+                        else (e.category or "Other")
+                    ),
+                    "amount": e.amount,
+                    "description": e.description
+                }
                 for e in expenses
             ]
         }
@@ -127,22 +135,30 @@ def get_portfolio_at_risk(
         # Calculate amount due vs amount paid
         total_paid = sum([r.amount for r in loan.repayments])
         
-        # Determine schedule 
-        # (This is duplicated logic from loans router, maybe should be a utility)
-        num_installments = 0
-        interval = 0
+        # Duration-unit-aware installment calculation
+        unit = loan.duration_unit or "months"
+        duration = loan.duration_months or 1
+        
+        if unit == "weeks":
+            total_days = duration * 7
+        elif unit == "days":
+            total_days = duration
+        else:
+            total_days = duration * 30
+
         if loan.repayment_frequency == "daily":
-            num_installments = loan.duration_months * 30
+            num_installments = total_days
             interval = 1
         elif loan.repayment_frequency == "weekly":
-            num_installments = loan.duration_months * 4
+            num_installments = max(1, total_days // 7)
             interval = 7
         else:
-            num_installments = loan.duration_months
+            num_installments = max(1, total_days // 30)
             interval = 30
-            
-        total_due = loan.amount * (1 + (loan.interest_rate / 100))
-        installment_amount = total_due / num_installments
+        
+        loan_rate = loan.interest_rate or 0
+        total_due = loan.amount * (1 + (loan_rate / 100))
+        installment_amount = total_due / num_installments if num_installments > 0 else total_due
         
         # Find expected balance today
         installments_passed = 0

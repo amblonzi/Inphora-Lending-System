@@ -206,7 +206,7 @@ def get_loan(
     
     return loan
 
-@router.put("/{loan_id}/approve")
+@router.post("/{loan_id}/approve")
 def approve_loan(
     loan_id: int,
     approval: schemas.LoanApprovalRequest,
@@ -231,7 +231,7 @@ def approve_loan(
 
     if approval.action == "reject":
         loan.status = "rejected"
-        loan.rejected_at = datetime.utcnow()
+        loan.rejected_at = datetime.now(timezone.utc)
         loan.rejection_reason = approval.notes
     elif approval.action == "approve":
         if loan.current_approval_level == 1:
@@ -239,7 +239,7 @@ def approve_loan(
         elif loan.current_approval_level >= 2:
             loan.status = "approved"
             loan.approved_by = current_user.id
-            loan.approved_at = datetime.utcnow()
+            loan.approved_at = datetime.now(timezone.utc)
             loan.rejection_reason = None
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
@@ -273,7 +273,7 @@ def approve_loan(
 
     return {"message": f"Loan {loan.status}", "current_level": loan.current_approval_level}
 
-@router.put("/{loan_id}/disburse")
+@router.post("/{loan_id}/disburse")
 def disburse_loan(
     loan_id: int,
     db: Session = Depends(get_tenant_db),
@@ -324,7 +324,13 @@ def get_loan_schedule(
     
     principal = loan.amount
     total_interest = (principal * loan.interest_rate) / 100
-    total_due = principal + total_interest
+    total_fees = (
+        (loan.processing_fee or 0.0) +
+        (loan.insurance_fee or 0.0) +
+        (loan.valuation_fee or 0.0) +
+        (loan.registration_fee or 0.0)
+    )
+    total_due = principal + total_interest + total_fees
     
     duration_count = loan.duration_months
     unit = loan.duration_unit or "months"
@@ -360,6 +366,7 @@ def get_loan_schedule(
     for i in range(1, num_installments + 1):
         payment_date = current_date + timedelta(days=interval_days * i)
         balance -= installment_amount
+        fees_part = total_fees / num_installments
         principal_part = principal / num_installments
         interest_part = total_interest / num_installments
         
@@ -369,6 +376,7 @@ def get_loan_schedule(
             "amount_due": round(installment_amount, 2),
             "principal_amount": round(principal_part, 2),
             "interest_amount": round(interest_part, 2),
+            "fees_amount": round(fees_part, 2),
             "balance": round(max(0, balance), 2)
         })
     
@@ -385,6 +393,12 @@ def create_repayment(
         loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
         if not loan:
             raise HTTPException(status_code=404, detail="Loan not found")
+        
+        if loan.status != "active":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Repayments can only be added to active loans (current status: {loan.status})"
+            )
         
         amount = repayment_data.amount
         payment_date = repayment_data.payment_date

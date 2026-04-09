@@ -18,8 +18,10 @@ def get_dashboard_stats(
         models.Loan.status.in_(["active", "completed"])
     ).scalar() or 0
     
-    # Active clients count
-    active_clients = db.query(func.count(models.Client.id)).scalar() or 0
+    # Active clients count (only truly active status)
+    active_clients = db.query(func.count(models.Client.id)).filter(
+        models.Client.status == "active"
+    ).scalar() or 0
     
     # Total revenue (interest from active and completed loans)
     total_revenue = db.query(
@@ -81,9 +83,13 @@ def get_dashboard_trends(
         ).scalar() or 0
         
         # New Clients
+        from datetime import timezone
+        start_dt = datetime(start_date.year, start_date.month, start_date.day, tzinfo=timezone.utc)
+        end_dt = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59, tzinfo=timezone.utc)
+        
         new_clients = db.query(func.count(models.Client.id)).filter(
-            models.Client.created_at >= datetime(start_date.year, start_date.month, start_date.day),
-            models.Client.created_at <= datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59)
+            models.Client.created_at >= start_dt,
+            models.Client.created_at <= end_dt
         ).scalar() or 0
         
         trends.append({

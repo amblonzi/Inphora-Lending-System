@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 import logging
 import json
@@ -121,7 +121,7 @@ async def submit_registration(
             address=address,
             status="pending",
             amount_paid=0, # Initial
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         
         db.add(application)
@@ -160,6 +160,25 @@ async def submit_registration(
             }
         )
 
+@router.get("/transactions")
+def get_transactions(
+    status: Optional[str] = None,
+    loan_id: Optional[int] = None,
+    page: int = 1,
+    size: int = 50,
+    db: Session = Depends(get_tenant_db),
+    current_user: models.User = Depends(auth_enhanced.require_role(["admin", "manager", "loan_officer"]))
+):
+    """Get all M-Pesa incoming transactions (paginated)"""
+    query = db.query(models.MpesaIncomingTransaction)
+    if status:
+        query = query.filter(models.MpesaIncomingTransaction.status == status)
+    if loan_id:
+        query = query.filter(models.MpesaIncomingTransaction.loan_id == loan_id)
+    query = query.order_by(models.MpesaIncomingTransaction.created_at.desc())
+    from pagination import paginate
+    return paginate(query, page, size)
+
 @router.get("/transactions/unmatched")
 async def get_unmatched_transactions(
     db: Session = Depends(get_tenant_db),
@@ -195,10 +214,10 @@ async def reconcile_transaction(
     repayment = models.Repayment(
         loan_id=loan_id,
         amount=transaction.amount,
-        payment_date=transaction.transaction_date or datetime.utcnow(),
+        payment_date=datetime.now(timezone.utc).date(),
         mpesa_transaction_id=transaction.transaction_id,
         payment_method="mpesa",
-        notes=f"Reconciled from M-Pesa: {transaction.sender_name} ({transaction.phone_number})"
+        notes=f"Reconciled from M-Pesa TX: {transaction.transaction_id} ({transaction.phone})"
     )
     
     db.add(repayment)
@@ -352,7 +371,7 @@ async def stk_callback(
             repayment = models.Repayment(
                 loan_id=loan_id,
                 amount=amount,
-                payment_date=datetime.utcnow(),
+                payment_date=datetime.now(timezone.utc).date(),
                 mpesa_transaction_id=receipt,
                 payment_method="mpesa",
                 notes=f"Auto-STK: {receipt}"
@@ -418,7 +437,7 @@ async def c2b_confirmation(
             repayment = models.Repayment(
                 loan_id=loan_id,
                 amount=amount,
-                payment_date=datetime.utcnow(),
+                payment_date=datetime.now(timezone.utc).date(),
                 mpesa_transaction_id=receipt,
                 payment_method="mpesa",
                 notes=f"Auto-C2B: {receipt}"

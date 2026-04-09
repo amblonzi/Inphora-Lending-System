@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Inphora Lending System API")
 
-# Auto-create database tables on startup (only in development)
-if os.getenv("ENVIRONMENT") != "production":
+# Auto-create database tables on startup (only when explicitly requested)
+if os.getenv("DB_INIT_ON_START", "false").lower() == "true":
     try:
         Base.metadata.create_all(bind=engine, checkfirst=True)
         logger.info("Database tables verified/created successfully")
@@ -71,8 +71,13 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
-    # Rate limiting check
-    client_ip = request.client.host
+    # Rate limiting check (using X-Forwarded-For if behind a proxy)
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        client_ip = forwarded.split(",")[0]
+    else:
+        client_ip = request.client.host
+        
     if not auth_enhanced.rate_limiter.is_allowed(client_ip):
         return JSONResponse(
             status_code=429,
@@ -276,41 +281,8 @@ def login_for_access_token(
         "two_factor_required": False
     }
 
-@app.post("/api/verify-otp", response_model=schemas.LoginResponse)
-def verify_otp(data: schemas.OTPVerify, db: Session = Depends(get_tenant_db)):
-    user = db.query(models.User).filter(models.User.id == data.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    if not user.otp_code or user.otp_code != data.otp_code:
-        raise HTTPException(status_code=400, detail="Invalid OTP")
-    
-    if datetime.now(timezone.utc) > user.otp_expires_at:
-        raise HTTPException(status_code=400, detail="OTP expired")
-    
-    # Clear OTP
-    user.otp_code = None
-    user.otp_expires_at = None
-    
-    # Log login activity
-    log_activity(db, user.id, "login", "user", user.id, {"email": user.email, "method": "2fa"})
-    
-    user.last_login = datetime.now(timezone.utc)
-    db.commit()
 
-    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = auth_enhanced.create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-    refresh_token = auth_enhanced.create_refresh_token(data={"sub": user.email})
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "two_factor_required": False
-    }
 
-# Enhanced Authentication Endpoints
 @app.post("/api/auth/refresh", response_model=schemas.TokenRefreshResponse)
 def refresh_token(
     request: Request,

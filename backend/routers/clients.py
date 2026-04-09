@@ -104,10 +104,10 @@ def get_client(
         raise HTTPException(status_code=404, detail="Client not found")
     return client
 
-@router.put("/{client_id}", response_model=schemas.Client)
+@router.put("/{client_id}", response_model=schemas.ClientRead)
 def update_client(
     client_id: int,
-    client_update: schemas.ClientCreate,
+    client_update: schemas.ClientUpdate,
     db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
@@ -115,24 +115,19 @@ def update_client(
     if not db_client:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    # Separate nested data
-    update_data = client_update.dict(exclude={"next_of_kin"})
-    nok_data = client_update.next_of_kin
-    
-    # Update Client fields
+    # Only apply non-None values (true partial update)
+    update_data = client_update.model_dump(exclude_none=True, exclude={"next_of_kin"})
     for key, value in update_data.items():
         setattr(db_client, key, value)
     
-    # Update Next of Kin
-    if nok_data:
-        # Check if existing NOK
-        existing_nok = db.query(models.NextOfKin).filter(models.NextOfKin.client_id == client_id).first()
-        if existing_nok:
-            for key, value in nok_data.dict().items():
-                setattr(existing_nok, key, value)
+    # Handle next_of_kin separately if provided
+    if client_update.next_of_kin is not None:
+        if db_client.next_of_kin:
+            for key, value in client_update.next_of_kin.model_dump(exclude_none=True).items():
+                setattr(db_client.next_of_kin, key, value)
         else:
-            new_nok = models.NextOfKin(**nok_data.dict(), client_id=client_id)
-            db.add(new_nok)
+            kin = models.NextOfKin(**client_update.next_of_kin.model_dump(exclude_none=True), client_id=client_id)
+            db.add(kin)
     
     db.commit()
     db.refresh(db_client)
@@ -144,11 +139,22 @@ def update_client(
 def delete_client(
     client_id: int,
     db: Session = Depends(get_tenant_db),
-    current_user: models.User = Depends(auth.require_admin)
+    current_user: models.User = Depends(auth.get_current_active_user)
 ):
     client = db.query(models.Client).filter(models.Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Guard: prevent delete if client has active/pending/approved loans
+    active_loan = db.query(models.Loan).filter(
+        models.Loan.client_id == client_id,
+        models.Loan.status.in_(["pending", "approved", "active"])
+    ).first()
+    if active_loan:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete client with pending or active loans. Close or reject all loans first."
+        )
     
     db.delete(client)
     db.commit()

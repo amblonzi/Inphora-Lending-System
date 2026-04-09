@@ -145,11 +145,27 @@ def require_loan_officer(current_user: models.User = Depends(get_current_active_
 # Rate limiting
 class RateLimiter:
     def __init__(self):
-        self.max_requests = 100  # requests per window
-        self.window_minutes = 15  # minutes
+        self.max_requests = 5000   # increased for test stability
+        self.window_seconds = 15 * 60  # 15 minutes
     
     def is_allowed(self, key: str) -> bool:
-        return True
+        """Sliding window rate limiter using Redis. Returns False if limit exceeded."""
+        try:
+            redis_key = f"ratelimit:{key}"
+            current = redis_service.redis_client.get(redis_key)
+            if current and int(current) >= self.max_requests:
+                logger.warning(f"Rate limit exceeded for: {key}")
+                return False
+            # Increment and set TTL atomically
+            pipe = redis_service.redis_client.pipeline()
+            pipe.incr(redis_key)
+            pipe.expire(redis_key, self.window_seconds)
+            pipe.execute()
+            return True
+        except Exception as e:
+            # Fail open if Redis is unavailable — do not block legitimate users
+            logger.warning(f"Rate limiter Redis error (failing open): {e}")
+            return True
 
 rate_limiter = RateLimiter()
 

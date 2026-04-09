@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import models, auth, schemas
 from database import get_db
@@ -108,15 +108,6 @@ def disburse_via_mpesa(
         disbursement.error_message = str(e)
         db.commit()
         raise HTTPException(status_code=500, detail=str(e))
-    db.refresh(disbursement)
-    
-    return {
-        "message": "Disbursement completed",
-        "transaction_id": disbursement.id,
-        "mpesa_ref": disbursement.mpesa_transaction_id,
-        "amount": disbursement.amount,
-        "phone": mpesa_phone
-    }
 
 @router.post("/loans/{loan_id}/disburse/bank")
 def disburse_via_bank(
@@ -157,7 +148,7 @@ def disburse_via_bank(
         bank_reference=bank_reference,
         status="completed",
         initiated_by=current_user.id,
-        completed_at=datetime.utcnow()
+        completed_at=datetime.now(timezone.utc)
     )
     db.add(disbursement)
     
@@ -202,7 +193,7 @@ def disburse_manual(
             bank_reference=notes,
             status="completed",
             initiated_by=current_user.id,
-            completed_at=datetime.utcnow()
+            completed_at=datetime.now(timezone.utc)
         )
         db.add(disbursement)
         
@@ -225,10 +216,12 @@ def disburse_manual(
 def get_disbursement_history(
     loan_id: Optional[int] = None,
     status: Optional[str] = None,
+    page: int = 1,
+    size: int = 50,
     db: Session = Depends(get_tenant_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    """Get disbursement transaction history"""
+    """Get disbursement transaction history (paginated)"""
     query = db.query(models.DisbursementTransaction)
     
     if loan_id:
@@ -236,7 +229,10 @@ def get_disbursement_history(
     if status:
         query = query.filter(models.DisbursementTransaction.status == status)
     
-    return query.order_by(models.DisbursementTransaction.initiated_at.desc()).all()
+    query = query.order_by(models.DisbursementTransaction.initiated_at.desc())
+    from pagination import paginate
+    import schemas
+    return paginate(query, page, size)
 
 @router.get("/{transaction_id}")
 def get_disbursement(

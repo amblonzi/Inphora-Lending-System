@@ -12,6 +12,9 @@ class PaginatedResponse(BaseModel, Generic[T]):
     size: int
     pages: int
 
+    class Config:
+        from_attributes = True
+
 def paginate(query: Query, page: int, size: int, response_model: Type[T]) -> PaginatedResponse[T]:
     if page < 1:
         page = 1

@@ -42,6 +42,7 @@ services:
       ENVIRONMENT: development
       DEBUG: "True"
       REDIS_URL: redis://redis:6379/0
+      DB_INIT_ON_START: "false"
     depends_on:
       db_local:
         condition: service_healthy
