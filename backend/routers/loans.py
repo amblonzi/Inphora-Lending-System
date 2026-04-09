@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date, datetime, timedelta, timezone
+from dateutil.relativedelta import relativedelta
 import math
 import models, schemas, auth
 from database import get_db
@@ -37,7 +38,7 @@ def create_loan(
     elif unit == "days":
         end_date = start_date_obj + timedelta(days=duration)
     else: # Default to months
-        end_date = start_date_obj + timedelta(days=duration * 30)
+        end_date = start_date_obj + relativedelta(months=duration) # FIXED: Use relativedelta for calendar months
     
     # Snapshot fees
     processing_fee = 0.0
@@ -58,6 +59,7 @@ def create_loan(
         end_date=end_date,
         duration_unit=unit,
         status="pending",
+        created_by_id=current_user.id, # FIXED: Store who submitted
         # Snapshot fees
         insurance_fee=product.insurance_fee or 0.0,
         processing_fee=processing_fee,
@@ -220,6 +222,25 @@ def approve_loan(
     if loan.status != "pending":
         raise HTTPException(status_code=400, detail="Only pending loans can be approved/rejected")
 
+    # FIXED: Role required per level: Level 1 = loan_officer or above, Level 2+ = admin or manager
+    LEVEL_ROLES = {
+        1: ["loan_officer", "admin", "manager"],
+        2: ["admin", "manager"],
+    }
+    required_roles = LEVEL_ROLES.get(loan.current_approval_level, ["admin"])
+    if current_user.role not in required_roles:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Level {loan.current_approval_level} approval requires role: {required_roles}"
+        )
+
+    # Prevent self-approval: block if the loan was created by the current user
+    if hasattr(loan, "created_by_id") and loan.created_by_id == current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot approve a loan you submitted."
+        )
+
     db_approval = models.LoanApproval(
         loan_id=loan.id,
         user_id=current_user.id,
@@ -273,7 +294,26 @@ def approve_loan(
 
     return {"message": f"Loan {loan.status}", "current_level": loan.current_approval_level}
 
-@router.post("/{loan_id}/disburse")
+@router.put("/{loan_id}/disburse")
+def disburse_loan_legacy(
+    loan_id: int,
+    db: Session = Depends(get_tenant_db),
+    current_user: models.User = Depends(auth.require_admin)
+):
+    """Legacy endpoint. Use POST /api/disbursements/loans/{id}/disburse/manual instead."""
+    import warnings
+    print(f"WARNING: Deprecated endpoint PUT /api/loans/{loan_id}/disburse called. Use /api/disbursements/loans/{loan_id}/disburse/manual")
+    loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
+    if not loan:
+        raise HTTPException(status_code=404, detail="Loan not found")
+    if loan.status != "approved":
+        raise HTTPException(status_code=400, detail="Loan must be approved before disbursement")
+    loan.status = "active"
+    db.commit()
+    log_activity(db, current_user.id, "disburse", "loan", loan.id, {"amount": loan.amount, "method": "legacy_manual"})
+    return {"message": "Loan disbursed (legacy). Consider using /api/disbursements/loans/{id}/disburse/manual for full audit trail."}
+
+@router.post("/{loan_id}/disburse") # Keep the POST as well if it was planned
 def disburse_loan(
     loan_id: int,
     db: Session = Depends(get_tenant_db),

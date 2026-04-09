@@ -25,17 +25,13 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-SECRET_KEY = os.getenv("SECRET_KEY", "local_secret_key_123")
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
-
-# Warn if using default secret key
-if SECRET_KEY == "local_secret_key_123":
-    logger.warning(
-        "WARNING: Using default SECRET_KEY. Set a secure SECRET_KEY in your .env file for production!"
-    )
+if not SECRET_KEY:
+    raise RuntimeError("CRITICAL: SECRET_KEY environment variable is not set. Refusing to start in insecure mode.")
 
 # Using pbkdf2_sha256 as primary for local dev compatibility (especially on Python 3.14)
 pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")

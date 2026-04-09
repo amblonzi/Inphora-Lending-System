@@ -33,12 +33,8 @@ if not DATABASE_URL:
             "?charset=utf8mb4"
         )
     else:
-        # Priority 3: SQLite fallback for local dev without any DB config
-        DATABASE_URL = "sqlite:///./test.db"
-        logger.warning(
-            "No DATABASE_URL or DB_PASSWORD/DB_NAME set — "
-            "falling back to SQLite (test.db). Set proper env vars for production."
-        )
+        # Priority 3: Hard fail missing DB in production context
+        raise RuntimeError("CRITICAL: DATABASE_URL or DB credentials not set. Booting blocked.")
 
 logger.info(f"Using database: {DATABASE_URL.split('@')[-1] if '@' in DATABASE_URL else DATABASE_URL}")
 

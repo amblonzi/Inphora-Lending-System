@@ -40,6 +40,10 @@ origins = [
     "http://localhost:5174",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5174",
+    # Production Subdomains
+    "https://tytahj.inphora.net",
+    "https://amariflow.inphora.net",
+    "https://il.inphora.net"
 ]
 
 # Add Production Origins

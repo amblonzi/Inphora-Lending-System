@@ -56,8 +56,8 @@ function App() {
   return (
     <GlobalErrorBoundary>
       <ThemeProvider>
-        <OrganizationProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <OrganizationProvider>
             <Router>
               <Routes>
                 <Route path="/login" element={<Login />} />
@@ -114,8 +114,8 @@ function App() {
                 }}
               />
             </Router>
-          </AuthProvider>
-        </OrganizationProvider>
+          </OrganizationProvider>
+        </AuthProvider>
       </ThemeProvider>
     </GlobalErrorBoundary>
   );

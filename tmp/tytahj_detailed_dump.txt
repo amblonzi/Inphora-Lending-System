@@ -1,0 +1,111 @@
+
+LOAN SCHEMA:
+id, client_id, product_id, amount, interest_rate, duration_months, start_date, end_date, repayment_frequency, insurance_fee, processing_fee, valuation_fee, registration_fee, is_processing_fee_waived, duration_unit, status, current_approval_level, approved_by, approved_at, rejected_at, rejection_reason
+
+First 2 Loans:
+{
+  "id": 1,
+  "client_id": 1,
+  "product_id": 1,
+  "amount": 20000.0,
+  "interest_rate": 0.0,
+  "duration_months": 1,
+  "start_date": "2026-03-18",
+  "end_date": "2026-04-18",
+  "repayment_frequency": "Monthly",
+  "insurance_fee": null,
+  "processing_fee": 400.0,
+  "valuation_fee": null,
+  "registration_fee": null,
+  "is_processing_fee_waived": false,
+  "duration_unit": null,
+  "status": "Disbursed",
+  "current_approval_level": 1,
+  "approved_by": null,
+  "approved_at": null,
+  "rejected_at": null,
+  "rejection_reason": null
+}
+{
+  "id": 2,
+  "client_id": 2,
+  "product_id": 1,
+  "amount": 108000.0,
+  "interest_rate": 0.0,
+  "duration_months": 1,
+  "start_date": "2026-03-16",
+  "end_date": "2026-04-16",
+  "repayment_frequency": "Weekly",
+  "insurance_fee": null,
+  "processing_fee": 2160.0,
+  "valuation_fee": null,
+  "registration_fee": null,
+  "is_processing_fee_waived": false,
+  "duration_unit": null,
+  "status": "Disbursed",
+  "current_approval_level": 1,
+  "approved_by": null,
+  "approved_at": null,
+  "rejected_at": null,
+  "rejection_reason": null
+}
+
+CLIENT SCHEMA:
+id, first_name, last_name, email, phone, id_number, address, dob, gender, marital_status, document_url, branch_id, town, estate, house_number, customer_group_id, created_by_id, status, created_at, joined_at, mpesa_phone, bank_name, bank_account_number, bank_account_name, preferred_disbursement
+
+First 2 Clients:
+{
+  "id": 1,
+  "first_name": "Jennings",
+  "last_name": "Obongo",
+  "email": null,
+  "phone": "N/A-1",
+  "id_number": "N/A-1",
+  "address": null,
+  "dob": null,
+  "gender": null,
+  "marital_status": null,
+  "document_url": null,
+  "branch_id": null,
+  "town": null,
+  "estate": null,
+  "house_number": null,
+  "customer_group_id": null,
+  "created_by_id": null,
+  "status": "Active",
+  "created_at": "2026-03-22T08:51:38",
+  "joined_at": null,
+  "mpesa_phone": null,
+  "bank_name": null,
+  "bank_account_number": null,
+  "bank_account_name": null,
+  "preferred_disbursement": "Cash"
+}
+{
+  "id": 2,
+  "first_name": "Lilian",
+  "last_name": "Nabutola",
+  "email": null,
+  "phone": "N/A-2",
+  "id_number": "N/A-2",
+  "address": null,
+  "dob": null,
+  "gender": null,
+  "marital_status": null,
+  "document_url": null,
+  "branch_id": null,
+  "town": null,
+  "estate": null,
+  "house_number": null,
+  "customer_group_id": null,
+  "created_by_id": null,
+  "status": "Active",
+  "created_at": "2026-03-22T08:51:38",
+  "joined_at": null,
+  "mpesa_phone": null,
+  "bank_name": null,
+  "bank_account_number": null,
+  "bank_account_name": null,
+  "preferred_disbursement": "Cash"
+}
+

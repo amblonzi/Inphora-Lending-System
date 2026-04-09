@@ -385,6 +385,7 @@ class LoanFinancialAnalysisBase(BaseModel):
     cost_of_sales: float = 0.0
     expenditure: float = 0.0
     net_income: float = 0.0
+    available_income: float = 0.0 # FIXED: Required for front-end analysis
 
 class LoanFinancialAnalysisCreate(LoanFinancialAnalysisBase):
     pass

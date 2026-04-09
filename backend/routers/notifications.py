@@ -28,6 +28,21 @@ def get_user_notifications(
     
     return paginate(query, page, size, schemas.Notification)
 
+@router.put("/read-all", response_model=dict)
+def mark_all_as_read(
+    db: Session = Depends(get_tenant_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Mark all unread notifications for the user as read.
+    """
+    db.query(models.Notification)\
+        .filter(models.Notification.user_id == current_user.id, models.Notification.is_read == False)\
+        .update({"is_read": True})
+        
+    db.commit()
+    return {"message": "All notifications marked as read"}
+
 @router.put("/{notification_id}/read", response_model=schemas.Notification)
 def mark_notification_as_read(
     notification_id: int,
@@ -56,18 +71,3 @@ def mark_notification_as_read(
     db.commit()
     db.refresh(notification)
     return notification
-
-@router.put("/read-all", response_model=dict)
-def mark_all_as_read(
-    db: Session = Depends(get_tenant_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    """
-    Mark all unread notifications for the user as read.
-    """
-    db.query(models.Notification)\
-        .filter(models.Notification.user_id == current_user.id, models.Notification.is_read == False)\
-        .update({"is_read": True})
-        
-    db.commit()
-    return {"message": "All notifications marked as read"}

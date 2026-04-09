@@ -100,7 +100,7 @@ export const api = {
     get: async (id) => (await apiClient.get(`/api/loans/${id}`)).data,
     approve: async (id, data) => (await apiClient.post(`/api/loans/${id}/approve`, data)).data,
     reject: async (id, notes = '') => (await apiClient.post(`/api/loans/${id}/approve`, { action: 'reject', notes })).data,
-    disburse: async (id) => (await apiClient.post(`/api/loans/${id}/disburse`)).data,
+    disburse: async (id, notes = 'Disbursed via UI') => (await apiClient.post(`/api/disbursements/loans/${id}/disburse/manual`, null, { params: { notes } })).data,
     repay: async (id, data) => (await apiClient.post(`/api/loans/${id}/repayments`, data)).data,
     getSchedule: async (id) => {
       const res = await apiClient.get(`/api/loans/${id}/schedule`);

@@ -1,0 +1,17 @@
+Total clients (customers): 16
+Total loans: 24
+
+Clients (first 5):
+- 1: Jennings Obongo
+- 2: Lilian Nabutola
+- 3: Dishon Maliga
+- 4: Joan Wambui
+- 5: Christine Ndombi
+
+Loans (first 5):
+- 1: Client 1, Amount 20000.0, Status Disbursed
+- 2: Client 2, Amount 108000.0, Status Disbursed
+- 3: Client 3, Amount 15000.0, Status Disbursed
+- 4: Client 4, Amount 12000.0, Status Disbursed
+- 5: Client 5, Amount 65000.0, Status Disbursed
+

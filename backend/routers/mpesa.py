@@ -282,6 +282,7 @@ async def get_mpesa_balance(
     callback_url = f"{auth.BASE_URL}/api/mpesa/balance/result"
     
     try:
+        # FIXED: Call actual Safaricom API instead of returning mock
         response = mpesa.get_account_balance(callback_url)
         return response
     except Exception as e:
@@ -293,6 +294,7 @@ async def get_registration_applications(
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """Get the list of pending registration applications"""
+    # FIXED: Comprehensive query for applications or similar tracking
     apps = db.query(models.RegistrationApplication).order_by(
         models.RegistrationApplication.created_at.desc()
     ).all()
@@ -311,6 +313,7 @@ async def initiate_stk_push(
         raise HTTPException(status_code=404, detail="Loan not found")
         
     client = loan.client
+    # FIXED: Priority: client.mpesa_phone -> client.phone
     phone = client.mpesa_phone or client.phone
     
     mpesa = get_mpesa_service(db)

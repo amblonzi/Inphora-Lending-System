@@ -152,6 +152,7 @@ class Loan(Base):
     approved_at = Column(DateTime, nullable=True)
     rejected_at = Column(DateTime, nullable=True)
     rejection_reason = Column(Text, nullable=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True) # FIXED: Track who submitted
     
     client = relationship("Client", back_populates="loans")
     product = relationship("LoanProduct")
@@ -552,7 +553,7 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), index=True) # FIXED: Added index
     title = Column(String(255))
     message = Column(Text)
     type = Column(String(50), default="info") # info, success, warning, error
