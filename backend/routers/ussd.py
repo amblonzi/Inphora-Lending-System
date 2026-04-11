@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Form, Response
 from sqlalchemy.orm import Session
 import models, auth
-from database import get_db
 from tenant import get_tenant_db
 import logging
 

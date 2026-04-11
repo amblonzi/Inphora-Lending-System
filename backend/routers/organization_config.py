@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional
 import models, schemas
-from database import get_db
 from tenant import get_tenant_db
 from auth import get_current_user
 

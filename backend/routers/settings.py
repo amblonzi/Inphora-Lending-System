@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import models, schemas, auth
-from database import get_db
 from tenant import get_tenant_db
 
 router = APIRouter(prefix="/settings", tags=["settings"])

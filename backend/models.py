@@ -152,7 +152,7 @@ class Loan(Base):
     approved_at = Column(DateTime, nullable=True)
     rejected_at = Column(DateTime, nullable=True)
     rejection_reason = Column(Text, nullable=True)
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True) # FIXED: Track who submitted
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # FK to users: loan officer who submitted
     
     client = relationship("Client", back_populates="loans")
     product = relationship("LoanProduct")

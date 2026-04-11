@@ -69,7 +69,7 @@ const LoanProducts = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this product?')) return;
         try {
-            await api.client.delete(`/api/loan-products/${id}`);
+            await api.loanProducts.delete(id);
             toast.success('Product deleted successfully');
             fetchProducts();
         } catch (error) {
@@ -100,7 +100,7 @@ const LoanProducts = () => {
 
         try {
             if (editId) {
-                await api.client.put(`/api/loan-products/${editId}`, payload);
+                await api.loanProducts.update(editId, payload);
                 toast.success('Product updated successfully');
             } else {
                 await api.loanProducts.create(payload);

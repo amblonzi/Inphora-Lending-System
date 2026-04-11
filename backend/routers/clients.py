@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 import models, schemas, auth
-from database import get_db
 from tenant import get_tenant_db
 from pagination import paginate
 from utils import log_activity, create_notification

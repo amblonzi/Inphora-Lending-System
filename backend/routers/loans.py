@@ -5,7 +5,6 @@ from datetime import date, datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 import math
 import models, schemas, auth
-from database import get_db
 from tenant import get_tenant_db
 from pagination import paginate, PaginatedResponse
 from utils import log_activity, create_notification, calculate_apr

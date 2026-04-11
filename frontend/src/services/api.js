@@ -69,20 +69,20 @@ export const api = {
   users: {
     getAll: async () => {
       const res = await apiClient.get('/api/users/');
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     getMe: async () => (await apiClient.get('/api/users/me')).data,
     create: async (data) => (await apiClient.post('/api/users/', data)).data,
     update: async (id, data) => (await apiClient.put(`/api/users/${id}`, data)).data,
     getActivityLogs: async (limit = 100) => {
       const res = await apiClient.get('/api/users/activity-logs', { params: { limit } });
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
   },
   clients: {
     list: async (params) => {
       const res = await apiClient.get('/api/clients/', { params });
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     create: async (data) => (await apiClient.post('/api/clients/', data)).data,
     get: async (id) => (await apiClient.get(`/api/clients/${id}`)).data,
@@ -94,7 +94,7 @@ export const api = {
   loans: {
     list: async (params) => {
       const res = await apiClient.get('/api/loans/', { params });
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     create: async (data) => (await apiClient.post('/api/loans/', data)).data,
     get: async (id) => (await apiClient.get(`/api/loans/${id}`)).data,
@@ -104,7 +104,7 @@ export const api = {
     repay: async (id, data) => (await apiClient.post(`/api/loans/${id}/repayments`, data)).data,
     getSchedule: async (id) => {
       const res = await apiClient.get(`/api/loans/${id}/schedule`);
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     exportStatement: async (id) => (await apiClient.get(`/api/loans/${id}/statement`, { responseType: 'blob' })),
   },
@@ -112,7 +112,7 @@ export const api = {
   loanProducts: {
     list: async () => {
       const res = await apiClient.get('/api/loan-products/');
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     create: async (data) => (await apiClient.post('/api/loan-products/', data)).data,
     update: async (id, data) => (await apiClient.put(`/api/loan-products/${id}`, data)).data,
@@ -122,7 +122,7 @@ export const api = {
   expenses: {
     list: async (params) => {
       const res = await apiClient.get('/api/expenses/', { params });
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     create: async (data) => (await apiClient.post('/api/expenses/', data)).data,
     delete: async (id) => (await apiClient.delete(`/api/expenses/${id}`)).data,
@@ -130,7 +130,7 @@ export const api = {
     categories: {
       list: async () => {
         const res = await apiClient.get('/api/expenses/categories/');
-        return ensureArray(res.data);
+        return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
       },
       create: async (data) => (await apiClient.post('/api/expenses/categories/', data)).data,
     }
@@ -139,7 +139,7 @@ export const api = {
   branches: {
     list: async () => {
       const res = await apiClient.get('/api/branches/');
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     create: async (data) => (await apiClient.post('/api/branches/', data)).data,
     update: async (id, data) => (await apiClient.put(`/api/branches/${id}`, data)).data,
@@ -149,7 +149,7 @@ export const api = {
   customerGroups: {
     list: async () => {
       const res = await apiClient.get('/api/customer-groups/');
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     create: async (data) => (await apiClient.post('/api/customer-groups/', data)).data,
     update: async (id, data) => (await apiClient.put(`/api/customer-groups/${id}`, data)).data,
@@ -162,14 +162,14 @@ export const api = {
     getPortfolioHealth: async () => (await apiClient.get('/api/reports/portfolio-health')).data,
     getClientTrends: async (months = 12) => {
       const res = await apiClient.get('/api/reports/client-trends', { params: { months } });
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
   },
 
   mpesa: {
     getUnmatched: async () => {
       const res = await apiClient.get('/api/mpesa/transactions/unmatched');
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     reconcile: async (transId, loanId) => (await apiClient.post(`/api/mpesa/reconcile/${transId}/${loanId}`)).data,
     stkPush: async (loanId, amount) => (await apiClient.post(`/api/mpesa/stk/push/${loanId}`, null, { params: { amount } })).data,
@@ -196,7 +196,7 @@ export const api = {
     manual: async (loanId, notes) => (await apiClient.post(`/api/disbursements/loans/${loanId}/disburse/manual`, null, { params: { notes } })).data,
     getHistory: async (params) => {
       const res = await apiClient.get('/api/disbursements/history', { params });
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
   },
 
@@ -217,7 +217,7 @@ export const api = {
   repayments: {
     list: async (params) => {
       const res = await apiClient.get('/api/repayments/', { params });
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     getStats: async () => (await apiClient.get('/api/repayments/stats')).data,
   },
@@ -225,7 +225,7 @@ export const api = {
   chequeDiscounting: {
     list: async (params) => {
       const res = await apiClient.get('/api/cheque-discounting/', { params });
-      return ensureArray(res.data);
+      return res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
     },
     create: async (data) => (await apiClient.post('/api/cheque-discounting/', data)).data,
     updateStatus: async (id, status) => (await apiClient.put(`/api/cheque-discounting/${id}/status`, null, { params: { status } })).data,

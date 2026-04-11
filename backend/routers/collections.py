@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 import models, schemas, auth
-from database import get_db
 from tenant import get_tenant_db
 from datetime import datetime, timezone
 

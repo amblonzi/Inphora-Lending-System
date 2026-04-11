@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import Optional
 import models, auth, schemas
-from database import get_db
 from tenant import get_tenant_db
 from pagination import paginate
 from services.mpesa_service import MpesaService

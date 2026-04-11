@@ -5,7 +5,6 @@ from typing import Optional, List
 import logging
 import json
 import models, schemas, auth, auth_enhanced
-from database import get_db
 from tenant import get_tenant_db
 from utils import log_activity, create_notification
 from services.mpesa_service import MpesaService

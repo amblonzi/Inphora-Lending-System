@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
 import models, auth
-from database import get_db
 from tenant import get_tenant_db
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])

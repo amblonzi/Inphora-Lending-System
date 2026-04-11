@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 import json
 import models
-from database import get_db
 from tenant import get_tenant_db
 
 router = APIRouter(

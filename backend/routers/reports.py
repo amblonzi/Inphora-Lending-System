@@ -4,7 +4,6 @@ from sqlalchemy import func
 from typing import List, Optional
 from datetime import date, datetime, timedelta
 import models, schemas, auth
-from database import get_db
 from tenant import get_tenant_db
 from services import reporting_service
 from fastapi.responses import StreamingResponse

@@ -51,3 +51,19 @@ static/uploads/*
 # OS
 .DS_Store
 Thumbs.db
+
+# Operational debug/deploy scripts with credentials
+tmp/
+
+# All .bak and .bak2 files everywhere (already partially covered, make it explicit)
+**/*.bak
+**/*.bak2
+
+# Credential output files
+**/initial_credentials_*.txt
+
+# Deployment residue
+**/tytahj_db_dump.txt
+**/tytahj_detailed_dump.txt
+**/tytahj_users_dump.txt
+**/seed_logs.txt

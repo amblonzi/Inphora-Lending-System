@@ -4,7 +4,6 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import models
 import json
-from database import get_db
 from tenant import get_tenant_db
 from auth import get_current_active_user
 from datetime import datetime
