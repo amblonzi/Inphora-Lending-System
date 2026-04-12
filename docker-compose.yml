@@ -38,20 +38,17 @@ services:
   # ── Databases ──────────────────────────────────────────────────────────────
   mariadb:
     image: mariadb:10.11
-    container_name: mariadb       # FIXED: Ensure fixed name for scripts
+    container_name: mariadb
     restart: unless-stopped
     networks:
       - internal
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_USER:          ${DB_USER}
-      MYSQL_PASSWORD:      ${DB_PASSWORD_IL}
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"  # Fallback to prevent crash if env is missed during init
+      # Note: MariaDB init scripts in /docker-entrypoint-initdb.d create the actual databases
+      # These MYSQL_* vars are just fallback
     volumes:
       - mariadb_data:/var/lib/mysql
-      - ./init_sql:/docker-entrypoint-initdb.d:ro   # DB init scripts
-    # FIXED: Do NOT expose port 3306 to host in production
-    # ports: ["3306:3306"]   ← REMOVED
+      - ./init_sql:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
       interval: 10s
@@ -85,18 +82,22 @@ services:
   backend_tytahj:
     <<: *backend-defaults
     container_name: backend_tytahj
+    ports:
+      - "8001:8000"
     environment:
-      - ENVIRONMENT=production
+      - ENVIRONMENT=${ENVIRONMENT:-development}
       - TENANT_NAME=tytahj
       - DB_HOST=mariadb
+      - DB_PORT=3306
       - DB_NAME=${DB_NAME_TYTAHJ}
       - DB_USER=${DB_USER_TYTAHJ}
       - DB_PASSWORD=${DB_PASSWORD_TYTAHJ}
+      - DATABASE_URL=mysql+pymysql://${DB_USER_TYTAHJ}:${DB_PASSWORD_TYTAHJ}@mariadb:3306/${DB_NAME_TYTAHJ}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - SECRET_KEY=${SECRET_KEY_TYTAHJ}
-      - ALLOWED_HOSTS=tytahj.inphora.net
-      - ALLOWED_ORIGINS=https://tytahj.inphora.net
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend_tytahj
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
@@ -108,18 +109,22 @@ services:
   backend_amariflow:
     <<: *backend-defaults
     container_name: backend_amariflow
+    ports:
+      - "8002:8000"
     environment:
-      - ENVIRONMENT=production
+      - ENVIRONMENT=${ENVIRONMENT:-development}
       - TENANT_NAME=amariflow
       - DB_HOST=mariadb
+      - DB_PORT=3306
       - DB_NAME=${DB_NAME_AMARIFLOW}
       - DB_USER=${DB_USER_AMARIFLOW}
       - DB_PASSWORD=${DB_PASSWORD_AMARIFLOW}
+      - DATABASE_URL=mysql+pymysql://${DB_USER_AMARIFLOW}:${DB_PASSWORD_AMARIFLOW}@mariadb:3306/${DB_NAME_AMARIFLOW}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - SECRET_KEY=${SECRET_KEY_AMARIFLOW}
-      - ALLOWED_HOSTS=amariflow.inphora.net
-      - ALLOWED_ORIGINS=https://amariflow.inphora.net
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend_amariflow
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
@@ -131,18 +136,22 @@ services:
   backend_il:
     <<: *backend-defaults
     container_name: backend_il
+    ports:
+      - "8000:8000"
     environment:
-      - ENVIRONMENT=production
+      - ENVIRONMENT=${ENVIRONMENT:-development}
       - TENANT_NAME=inphora_logic
       - DB_HOST=mariadb
+      - DB_PORT=3306
       - DB_NAME=${DB_NAME_IL}
       - DB_USER=${DB_USER_IL}
       - DB_PASSWORD=${DB_PASSWORD_IL}
+      - DATABASE_URL=mysql+pymysql://${DB_USER_IL}:${DB_PASSWORD_IL}@mariadb:3306/${DB_NAME_IL}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - SECRET_KEY=${SECRET_KEY_IL}
-      - ALLOWED_HOSTS=il.inphora.net
-      - ALLOWED_ORIGINS=https://il.inphora.net
+      - ALLOWED_HOSTS=localhost,127.0.0.1,backend_il
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
@@ -157,8 +166,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     container_name: frontend
     restart: unless-stopped
+    ports:
+      - "5173:80"
     networks:
       - frontend_net
     deploy:
@@ -177,12 +190,12 @@ services:
       - "80:80"
       - "443:443"
     networks:
+      - internal
       - frontend_net
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./static:/var/www/static:ro
       - certbot_webroot:/var/www/certbot:ro
-      - letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - frontend
       - backend_tytahj
@@ -195,22 +208,23 @@ services:
           memory: 64M
 
 
-  # ── Certbot (SSL renewal) ─────────────────────────────────────────────────
-  certbot:
-    image: certbot/certbot:latest
-    volumes:
-      - certbot_webroot:/var/www/certbot
-      - letsencrypt:/etc/letsencrypt
-    entrypoint: >
-      /bin/sh -c "
-      if [ ! -d /etc/letsencrypt/live/inphora.net ]; then
-        certbot certonly --webroot -w /var/www/certbot --email admin@inphora.net --agree-tos --no-eff-email -d inphora.net -d tytahj.inphora.net -d amariflow.inphora.net -d il.inphora.net || true;
-      fi;
-      trap exit TERM;
-      while :; do
-        certbot renew --webroot --webroot-path=/var/www/certbot --quiet;
-        sleep 12h & wait $${!};
-      done"
+  # ── Certbot (SSL renewal) - DISABLED for local development ────────────────
+  # Uncomment for production deployment with proper domain and SSL setup
+  # certbot:
+  #   image: certbot/certbot:latest
+  #   volumes:
+  #     - certbot_webroot:/var/www/certbot
+  #     - letsencrypt:/etc/letsencrypt
+  #   entrypoint: >
+  #     /bin/sh -c "
+  #     if [ ! -d /etc/letsencrypt/live/inphora.net ]; then
+  #       certbot certonly --webroot -w /var/www/certbot --email admin@inphora.net --agree-tos --no-eff-email -d inphora.net -d tytahj.inphora.net -d amariflow.inphora.net -d il.inphora.net || true;
+  #     fi;
+  #     trap exit TERM;
+  #     while :; do
+  #       certbot renew --webroot --webroot-path=/var/www/certbot --quiet;
+  #       sleep 12h & wait $${!};
+  #     done"
 
 
 # ── Networks ──────────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ const apiClient = axios.create({
   // Default to relative path in production (proxied by Nginx)
   // In local dev, VITE_API_URL can be set, or Vite proxy handles it
   baseURL: import.meta.env.VITE_API_URL || '',
+  headers: { 'Content-Type': 'application/json' }
 });
 
 // Request Interceptor: Add Token

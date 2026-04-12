@@ -38,8 +38,8 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
       link.click();
       link.remove();
       toast.success("Statement exported successfully");
-    } catch {
-      toast.error("Failed to export statement");
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to export statement");
     } finally {
       setExporting(false);
     }
@@ -50,8 +50,8 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
       const updated = await api.loans.get(loan.id);
       setActiveLoan(updated);
       onUpdate();
-    } catch {
-      toast.error("Failed to refresh loan details");
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to refresh loan details");
     }
   };
 
@@ -82,8 +82,8 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
     try {
       const data = await api.loans.getSchedule(activeLoan.id);
       setSchedule(data);
-    } catch {
-      toast.error("Failed to load repayment schedule");
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to load repayment schedule");
     } finally {
       setLoadingSchedule(false);
     }
@@ -114,8 +114,8 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate }) => {
         setShowRejectInput(false);
         setRejectionReason('');
       }
-    } catch {
-      toast.error(`Failed to ${action} loan`);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || `Failed to ${action} loan`);
     } finally {
       setActionLoading(false);
     }

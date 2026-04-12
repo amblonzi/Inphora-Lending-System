@@ -26,7 +26,9 @@ from services.redis_service import redis_service
 load_dotenv()
 
 # JWT Configuration — uses same SECRET_KEY as auth.py for consistency
-SECRET_KEY = os.getenv("SECRET_KEY", "local_secret_key_123")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("CRITICAL: SECRET_KEY environment variable is not set in auth_enhanced.py. Refusing to start.")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 REFRESH_TOKEN_EXPIRE_DAYS = 7
