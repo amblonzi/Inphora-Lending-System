@@ -10,8 +10,10 @@ const Settings = () => {
   const { api, user, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState('organization');
   const [settings, setSettings] = useState({});
+  const [settingsDraft, setSettingsDraft] = useState({});
   const [loading, setLoading] = useState(false);
   const [orgConfig, setOrgConfig] = useState(null);
+  const [orgDraft, setOrgDraft] = useState(null);
   const [orgLoading, setOrgLoading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
@@ -38,6 +40,7 @@ const Settings = () => {
         settingsObj[s.setting_key] = s.setting_value;
       });
       setSettings(settingsObj);
+      setSettingsDraft(settingsObj);
     } catch (error) {
       console.error('Error fetching settings:', error);
       toast.error('Failed to load configuration settings');
@@ -46,7 +49,7 @@ const Settings = () => {
     }
   };
 
-  const saveSetting = async (key, value, category) => {
+  const saveSetting = async (key, value, category, showToast = true) => {
     try {
       await api.client.post('/api/settings/', null, {
         params: {
@@ -55,9 +58,45 @@ const Settings = () => {
           category: category
         }
       });
-      toast.success(`${key} saved`);
+      if (showToast) {
+        toast.success(`${key} saved`);
+      }
     } catch (error) {
-      toast.error(`Error saving ${key}`);
+      if (showToast) {
+        toast.error(`Error saving ${key}`);
+      }
+      throw error;
+    }
+  };
+
+  const saveSettingsDraft = async (category) => {
+    if (!settingsDraft || Object.keys(settingsDraft).length === 0) return;
+    setLoading(true);
+    try {
+      const entries = Object.entries(settingsDraft);
+      await Promise.all(entries.map(([key, value]) => saveSetting(key, value, category, false)));
+      const label = category === 'payment' ? 'Payment settings' : category === 'sms' ? 'SMS settings' : 'Settings';
+      toast.success(`${label} saved`);
+    } catch (error) {
+      toast.error('Error saving settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateOrgDraft = (field, value) => {
+    setOrgDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const saveOrgDraft = async () => {
+    if (!orgDraft) return;
+    setOrgLoading(true);
+    try {
+      await saveOrgConfig(orgDraft);
+    } catch (error) {
+      // saveOrgConfig already handles toast
+    } finally {
+      setOrgLoading(false);
     }
   };
 
@@ -101,6 +140,7 @@ const Settings = () => {
     try {
       const data = await api.organization.getConfig();
       setOrgConfig(data);
+      setOrgDraft(data);
     } catch (error) {
       console.error('Error fetching organization config:', error);
       toast.error('Failed to load organization configuration');
@@ -113,14 +153,16 @@ const Settings = () => {
     try {
       await api.organization.updateConfig(updatedConfig);
       toast.success('Organization configuration updated');
-      // Update local state to reflect changes immediately without full reload if possible,
-      // but to be safe we can just set it.
       setOrgConfig(updatedConfig);
+      setOrgDraft(updatedConfig);
     } catch (error) {
       console.error('Error updating organization config:', error);
       toast.error(error.response?.data?.detail || 'Failed to update organization configuration');
+      throw error;
     }
   };
+
+  const previewOrgConfig = orgDraft || orgConfig;
 
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
@@ -225,8 +267,8 @@ const Settings = () => {
                         <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Organization Name</label>
                         <input
                           type="text"
-                          defaultValue={orgConfig.organization_name}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, organization_name: e.target.value })}
+                          value={orgDraft?.organization_name || ''}
+                          onChange={(e) => updateOrgDraft('organization_name', e.target.value)}
                           className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                         />
                       </div>
@@ -235,14 +277,14 @@ const Settings = () => {
                         <div className="flex gap-3">
                           <input
                             type="color"
-                            defaultValue={orgConfig.primary_color}
-                            onBlur={(e) => saveOrgConfig({ ...orgConfig, primary_color: e.target.value })}
+                            value={orgDraft?.primary_color || '#000000'}
+                            onChange={(e) => updateOrgDraft('primary_color', e.target.value)}
                             className="h-14 w-20 rounded-xl cursor-pointer border-2 border-gray-200 dark:border-white/10"
                           />
                           <input
                             type="text"
-                            defaultValue={orgConfig.primary_color}
-                            onBlur={(e) => saveOrgConfig({ ...orgConfig, primary_color: e.target.value })}
+                            value={orgDraft?.primary_color || '#000000'}
+                            onChange={(e) => updateOrgDraft('primary_color', e.target.value)}
                             className="flex-1 px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-mono"
                           />
                         </div>
@@ -252,14 +294,14 @@ const Settings = () => {
                         <div className="flex gap-3">
                           <input
                             type="color"
-                            defaultValue={orgConfig.secondary_color}
-                            onBlur={(e) => saveOrgConfig({ ...orgConfig, secondary_color: e.target.value })}
+                            value={orgDraft?.secondary_color || '#000000'}
+                            onChange={(e) => updateOrgDraft('secondary_color', e.target.value)}
                             className="h-14 w-20 rounded-xl cursor-pointer border-2 border-gray-200 dark:border-white/10"
                           />
                           <input
                             type="text"
-                            defaultValue={orgConfig.secondary_color}
-                            onBlur={(e) => saveOrgConfig({ ...orgConfig, secondary_color: e.target.value })}
+                            value={orgDraft?.secondary_color || '#000000'}
+                            onChange={(e) => updateOrgDraft('secondary_color', e.target.value)}
                             className="flex-1 px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-mono"
                           />
                         </div>
@@ -304,8 +346,8 @@ const Settings = () => {
                           <span className="absolute left-5 top-4 text-gray-400 dark:text-gray-600 font-mono text-sm">app.inphora.com/</span>
                           <input
                             type="text"
-                            defaultValue={orgConfig.slug || ''}
-                            onBlur={(e) => saveOrgConfig({ ...orgConfig, slug: e.target.value })}
+                            value={orgDraft?.slug || ''}
+                            onChange={(e) => updateOrgDraft('slug', e.target.value)}
                             placeholder="my-organization"
                             className="w-full pl-36 pr-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-mono"
                           />
@@ -323,8 +365,8 @@ const Settings = () => {
                         <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Contact Email</label>
                         <input
                           type="email"
-                          defaultValue={orgConfig.contact_email || ''}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, contact_email: e.target.value })}
+                          value={orgDraft?.contact_email || ''}
+                          onChange={(e) => updateOrgDraft('contact_email', e.target.value)}
                           placeholder="contact@organization.com"
                           className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium"
                         />
@@ -333,8 +375,8 @@ const Settings = () => {
                         <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Contact Phone</label>
                         <input
                           type="text"
-                          defaultValue={orgConfig.contact_phone || ''}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, contact_phone: e.target.value })}
+                          value={orgDraft?.contact_phone || ''}
+                          onChange={(e) => updateOrgDraft('contact_phone', e.target.value)}
                           placeholder="+254 700 000 000"
                           className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium"
                         />
@@ -342,8 +384,8 @@ const Settings = () => {
                       <div className="md:col-span-2 space-y-2">
                         <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Physical Address</label>
                         <textarea
-                          defaultValue={orgConfig.address || ''}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, address: e.target.value })}
+                          value={orgDraft?.address || ''}
+                          onChange={(e) => updateOrgDraft('address', e.target.value)}
                           placeholder="Enter organization address"
                           className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
                         />
@@ -359,8 +401,8 @@ const Settings = () => {
                         <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Registration Number</label>
                         <input
                           type="text"
-                          defaultValue={orgConfig.registration_number || ''}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, registration_number: e.target.value })}
+                          value={orgDraft?.registration_number || ''}
+                          onChange={(e) => updateOrgDraft('registration_number', e.target.value)}
                           placeholder="Business registration number"
                           className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium"
                         />
@@ -369,8 +411,8 @@ const Settings = () => {
                         <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Tax ID / KRA PIN</label>
                         <input
                           type="text"
-                          defaultValue={orgConfig.tax_id || ''}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, tax_id: e.target.value })}
+                          value={orgDraft?.tax_id || ''}
+                          onChange={(e) => updateOrgDraft('tax_id', e.target.value)}
                           placeholder="Tax identification number"
                           className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium"
                         />
@@ -386,8 +428,8 @@ const Settings = () => {
                         <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Currency</label>
                         <input
                           type="text"
-                          defaultValue={orgConfig.currency}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, currency: e.target.value })}
+                          value={orgDraft?.currency || ''}
+                          onChange={(e) => updateOrgDraft('currency', e.target.value)}
                           className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                         />
                       </div>
@@ -395,8 +437,8 @@ const Settings = () => {
                         <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Locale</label>
                         <input
                           type="text"
-                          defaultValue={orgConfig.locale}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, locale: e.target.value })}
+                          value={orgDraft?.locale || ''}
+                          onChange={(e) => updateOrgDraft('locale', e.target.value)}
                           className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                         />
                       </div>
@@ -404,12 +446,21 @@ const Settings = () => {
                         <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Timezone</label>
                         <input
                           type="text"
-                          defaultValue={orgConfig.timezone}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, timezone: e.target.value })}
+                          value={orgDraft?.timezone || ''}
+                          onChange={(e) => updateOrgDraft('timezone', e.target.value)}
                           className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                         />
                       </div>
                     </div>
+                  </div>
+                  <div className="pt-8 border-t border-gray-100 dark:border-white/5">
+                    <AnimatedButton
+                      onClick={saveOrgDraft}
+                      disabled={orgLoading}
+                      className="mt-6 py-4 px-8 bg-tytaj-600 hover:bg-tytaj-700"
+                    >
+                      <Save size={18} className="mr-2" /> Save Organization
+                    </AnimatedButton>
                   </div>
                 </div>
               ) : null}
@@ -436,10 +487,10 @@ const Settings = () => {
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Enable PWA</span>
                       <button
-                        onClick={() => saveOrgConfig({ ...orgConfig, pwa_enabled: !orgConfig.pwa_enabled })}
-                        className={`w-14 h-7 rounded-full transition-all relative ${orgConfig.pwa_enabled ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-white/10'}`}
+                        onClick={() => updateOrgDraft('pwa_enabled', !orgDraft?.pwa_enabled)}
+                        className={`w-14 h-7 rounded-full transition-all relative ${orgDraft?.pwa_enabled ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-white/10'}`}
                       >
-                        <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${orgConfig.pwa_enabled ? 'left-8' : 'left-1'}`} />
+                        <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${orgDraft?.pwa_enabled ? 'left-8' : 'left-1'}`} />
                       </button>
                     </div>
                   </div>
@@ -458,8 +509,8 @@ const Settings = () => {
                       <input
                         type="text"
                         maxLength={30}
-                        defaultValue={orgConfig.pwa_short_name || ''}
-                        onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_short_name: e.target.value })}
+                        value={orgDraft?.pwa_short_name || ''}
+                        onChange={(e) => updateOrgDraft('pwa_short_name', e.target.value)}
                         placeholder="e.g. Inphora"
                         className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:text-white font-black"
                       />
@@ -469,8 +520,8 @@ const Settings = () => {
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Display Mode</label>
                       <select
-                        defaultValue={orgConfig.pwa_display || 'standalone'}
-                        onChange={(e) => saveOrgConfig({ ...orgConfig, pwa_display: e.target.value })}
+                        value={orgDraft?.pwa_display || 'standalone'}
+                        onChange={(e) => updateOrgDraft('pwa_display', e.target.value)}
                         className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:text-white font-black"
                       >
                         <option value="standalone">Standalone (Full App)</option>
@@ -483,8 +534,8 @@ const Settings = () => {
                     <div className="md:col-span-2 space-y-2">
                       <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">PWA Description</label>
                       <textarea
-                        defaultValue={orgConfig.pwa_description || ''}
-                        onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_description: e.target.value })}
+                        value={orgDraft?.pwa_description || ''}
+                        onChange={(e) => updateOrgDraft('pwa_description', e.target.value)}
                         placeholder="Describe your app..."
                         className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
                       />
@@ -495,14 +546,14 @@ const Settings = () => {
                       <div className="flex gap-3">
                         <input
                           type="color"
-                          defaultValue={orgConfig.pwa_theme_color || orgConfig.primary_color}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_theme_color: e.target.value })}
+                          value={orgDraft?.pwa_theme_color || orgDraft?.primary_color || '#000000'}
+                          onChange={(e) => updateOrgDraft('pwa_theme_color', e.target.value)}
                           className="h-14 w-20 rounded-xl cursor-pointer border-2 border-gray-200 dark:border-white/10"
                         />
                         <input
                           type="text"
-                          defaultValue={orgConfig.pwa_theme_color || orgConfig.primary_color}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_theme_color: e.target.value })}
+                          value={orgDraft?.pwa_theme_color || orgDraft?.primary_color || '#000000'}
+                          onChange={(e) => updateOrgDraft('pwa_theme_color', e.target.value)}
                           className="flex-1 px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:text-white font-mono"
                         />
                       </div>
@@ -514,14 +565,14 @@ const Settings = () => {
                       <div className="flex gap-3">
                         <input
                           type="color"
-                          defaultValue={orgConfig.pwa_splash_bg_color || '#ffffff'}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_splash_bg_color: e.target.value })}
+                          value={orgDraft?.pwa_splash_bg_color || '#ffffff'}
+                          onChange={(e) => updateOrgDraft('pwa_splash_bg_color', e.target.value)}
                           className="h-14 w-20 rounded-xl cursor-pointer border-2 border-gray-200 dark:border-white/10"
                         />
                         <input
                           type="text"
-                          defaultValue={orgConfig.pwa_splash_bg_color || '#ffffff'}
-                          onBlur={(e) => saveOrgConfig({ ...orgConfig, pwa_splash_bg_color: e.target.value })}
+                          value={orgDraft?.pwa_splash_bg_color || '#ffffff'}
+                          onChange={(e) => updateOrgDraft('pwa_splash_bg_color', e.target.value)}
                           className="flex-1 px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:text-white font-mono"
                         />
                       </div>
@@ -605,19 +656,28 @@ const Settings = () => {
                     <h5 className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Live Preview (manifest.json)</h5>
                     <pre className="text-[10px] font-mono text-gray-600 dark:text-gray-400 bg-black/5 dark:bg-black/20 p-4 rounded-xl overflow-x-auto">
                       {JSON.stringify({
-                        name: orgConfig.organization_name,
-                        short_name: orgConfig.pwa_short_name || orgConfig.organization_name.split(' ')[0],
-                        description: orgConfig.pwa_description || 'Inphora Lending Management System',
-                        start_url: orgConfig.pwa_start_url || '/',
-                        display: orgConfig.pwa_display || 'standalone',
-                        background_color: orgConfig.pwa_splash_bg_color || '#ffffff',
-                        theme_color: orgConfig.pwa_theme_color || orgConfig.primary_color,
+                        name: previewOrgConfig.organization_name,
+                        short_name: previewOrgConfig.pwa_short_name || previewOrgConfig.organization_name.split(' ')[0],
+                        description: previewOrgConfig.pwa_description || 'Inphora Lending Management System',
+                        start_url: previewOrgConfig.pwa_start_url || '/',
+                        display: previewOrgConfig.pwa_display || 'standalone',
+                        background_color: previewOrgConfig.pwa_splash_bg_color || '#ffffff',
+                        theme_color: previewOrgConfig.pwa_theme_color || previewOrgConfig.primary_color,
                         icons: [
-                          { src: orgConfig.pwa_icon_url || '/icon-192.png', sizes: '192x192', type: 'image/png' },
-                          { src: orgConfig.pwa_icon_512_url || '/icon-512.png', sizes: '512x512', type: 'image/png' }
+                          { src: previewOrgConfig.pwa_icon_url || '/icon-192.png', sizes: '192x192', type: 'image/png' },
+                          { src: previewOrgConfig.pwa_icon_512_url || '/icon-512.png', sizes: '512x512', type: 'image/png' }
                         ]
                       }, null, 2)}
                     </pre>
+                  </div>
+                  <div className="pt-6 flex justify-end">
+                    <AnimatedButton
+                      onClick={saveOrgDraft}
+                      disabled={orgLoading}
+                      className="py-4 px-8 bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      <Save size={18} className="mr-2" /> Save PWA Settings
+                    </AnimatedButton>
                   </div>
                 </div>
               ) : null}
@@ -645,8 +705,8 @@ const Settings = () => {
                 <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Consumer Key</label>
                 <input
                   type="text"
-                  defaultValue={settings.mpesa_consumer_key || ''}
-                  onBlur={(e) => saveSetting('mpesa_consumer_key', e.target.value, 'payment')}
+                  value={settingsDraft.mpesa_consumer_key || settings.mpesa_consumer_key || ''}
+                  onChange={(e) => setSettingsDraft((prev) => ({ ...prev, mpesa_consumer_key: e.target.value }))}
                   className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                 />
               </div>
@@ -654,8 +714,8 @@ const Settings = () => {
                 <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Consumer Secret</label>
                 <input
                   type="password"
-                  defaultValue={settings.mpesa_consumer_secret || ''}
-                  onBlur={(e) => saveSetting('mpesa_consumer_secret', e.target.value, 'payment')}
+                  value={settingsDraft.mpesa_consumer_secret || settings.mpesa_consumer_secret || ''}
+                  onChange={(e) => setSettingsDraft((prev) => ({ ...prev, mpesa_consumer_secret: e.target.value }))}
                   className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                 />
               </div>
@@ -663,8 +723,8 @@ const Settings = () => {
                 <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Business Shortcode</label>
                 <input
                   type="text"
-                  defaultValue={settings.mpesa_shortcode || ''}
-                  onBlur={(e) => saveSetting('mpesa_shortcode', e.target.value, 'payment')}
+                  value={settingsDraft.mpesa_shortcode || settings.mpesa_shortcode || ''}
+                  onChange={(e) => setSettingsDraft((prev) => ({ ...prev, mpesa_shortcode: e.target.value }))}
                   className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                 />
               </div>
@@ -672,11 +732,20 @@ const Settings = () => {
                 <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Passkey</label>
                 <input
                   type="password"
-                  defaultValue={settings.mpesa_passkey || ''}
-                  onBlur={(e) => saveSetting('mpesa_passkey', e.target.value, 'payment')}
+                  value={settingsDraft.mpesa_passkey || settings.mpesa_passkey || ''}
+                  onChange={(e) => setSettingsDraft((prev) => ({ ...prev, mpesa_passkey: e.target.value }))}
                   className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                 />
               </div>
+            </div>
+            <div className="pt-6 flex justify-end">
+              <AnimatedButton
+                onClick={() => saveSettingsDraft('payment')}
+                disabled={loading}
+                className="py-4 px-8 bg-blue-600 hover:bg-blue-700"
+              >
+                <Save size={18} className="mr-2" /> Save Payment Settings
+              </AnimatedButton>
             </div>
           </GlassCard>
         )}
@@ -701,8 +770,8 @@ const Settings = () => {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">SMS Provider</label>
                   <select
-                    defaultValue={settings.sms_provider || 'simulator'}
-                    onChange={(e) => saveSetting('sms_provider', e.target.value, 'sms')}
+                    value={settingsDraft.sms_provider || settings.sms_provider || 'simulator'}
+                    onChange={(e) => setSettingsDraft((prev) => ({ ...prev, sms_provider: e.target.value }))}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                   >
                     <option value="simulator">Simulator (Debug)</option>
@@ -713,8 +782,8 @@ const Settings = () => {
                   <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">SMS Username (for AT)</label>
                   <input
                     type="text"
-                    defaultValue={settings.sms_username || ''}
-                    onBlur={(e) => saveSetting('sms_username', e.target.value, 'sms')}
+                    value={settingsDraft.sms_username || settings.sms_username || ''}
+                    onChange={(e) => setSettingsDraft((prev) => ({ ...prev, sms_username: e.target.value }))}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                   />
                 </div>
@@ -722,8 +791,8 @@ const Settings = () => {
                   <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">API Key / Secret</label>
                   <input
                     type="password"
-                    defaultValue={settings.sms_api_key || ''}
-                    onBlur={(e) => saveSetting('sms_api_key', e.target.value, 'sms')}
+                    value={settingsDraft.sms_api_key || settings.sms_api_key || ''}
+                    onChange={(e) => setSettingsDraft((prev) => ({ ...prev, sms_api_key: e.target.value }))}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                   />
                 </div>
@@ -731,8 +800,8 @@ const Settings = () => {
                   <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Sender ID (Optional)</label>
                   <input
                     type="text"
-                    defaultValue={settings.sms_sender_id || ''}
-                    onBlur={(e) => saveSetting('sms_sender_id', e.target.value, 'sms')}
+                    value={settingsDraft.sms_sender_id || settings.sms_sender_id || ''}
+                    onChange={(e) => setSettingsDraft((prev) => ({ ...prev, sms_sender_id: e.target.value }))}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-black"
                   />
                 </div>
@@ -742,36 +811,45 @@ const Settings = () => {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Welcome Message (Registration)</label>
                   <textarea
-                    defaultValue={settings.sms_registration || 'Hello {first_name}, welcome to Inphora! Your registration was successful.'}
-                    onBlur={(e) => saveSetting('sms_registration', e.target.value, 'sms')}
+                    value={settingsDraft.sms_registration || settings.sms_registration || 'Hello {first_name}, welcome to Inphora! Your registration was successful.'}
+                    onChange={(e) => setSettingsDraft((prev) => ({ ...prev, sms_registration: e.target.value }))}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Loan Application Confirmation</label>
                   <textarea
-                    defaultValue={settings.sms_loan_application || 'Hello {first_name}, your application for Loan #{loan_id} of KES {amount} has been received.'}
-                    onBlur={(e) => saveSetting('sms_loan_application', e.target.value, 'sms')}
+                    value={settingsDraft.sms_loan_application || settings.sms_loan_application || 'Hello {first_name}, your application for Loan #{loan_id} of KES {amount} has been received.'}
+                    onChange={(e) => setSettingsDraft((prev) => ({ ...prev, sms_loan_application: e.target.value }))}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Loan Approval Message</label>
                   <textarea
-                    defaultValue={settings.sms_loan_approval || 'Congratulations {first_name}! Your Loan #{loan_id} for KES {amount} has been approved.'}
-                    onBlur={(e) => saveSetting('sms_loan_approval', e.target.value, 'sms')}
+                    value={settingsDraft.sms_loan_approval || settings.sms_loan_approval || 'Congratulations {first_name}! Your Loan #{loan_id} for KES {amount} has been approved.'}
+                    onChange={(e) => setSettingsDraft((prev) => ({ ...prev, sms_loan_approval: e.target.value }))}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Loan Disbursement Message</label>
                   <textarea
-                    defaultValue={settings.sms_loan_disbursement || 'Hello {first_name}, KES {amount} for Loan #{loan_id} has been disbursed to your account.'}
-                    onBlur={(e) => saveSetting('sms_loan_disbursement', e.target.value, 'sms')}
+                    value={settingsDraft.sms_loan_disbursement || settings.sms_loan_disbursement || 'Hello {first_name}, KES {amount} for Loan #{loan_id} has been disbursed to your account.'}
+                    onChange={(e) => setSettingsDraft((prev) => ({ ...prev, sms_loan_disbursement: e.target.value }))}
                     className="w-full px-5 py-4 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-tytaj-500/20 focus:border-tytaj-500 outline-none transition-all dark:text-white font-medium min-h-[100px]"
                   />
                 </div>
               </div>
+            </div>
+            <div className="pt-6 flex justify-end">
+              <AnimatedButton
+                onClick={() => saveSettingsDraft('sms')}
+                disabled={loading}
+                className="py-4 px-8 bg-amber-600 hover:bg-amber-700"
+              >
+                <Save size={18} className="mr-2" /> Save SMS Settings
+              </AnimatedButton>
             </div>
           </GlassCard>
         )}
